@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../utils/api.js";
-import AppLink from "../../components/AppLink.jsx";
 
 export default function StudentSubjects() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get("/student/subjects")
@@ -23,11 +24,6 @@ export default function StudentSubjects() {
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl animate-spin mx-auto mb-4" 
                style={{ animationDuration: '3s' }} />
-          <div className="flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-          </div>
           <p className="text-slate-600 font-medium mt-3">Loading your subjects...</p>
         </div>
       </div>
@@ -63,7 +59,7 @@ export default function StudentSubjects() {
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow animate-fade-in">
+        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-sm font-semibold mb-3">
@@ -89,7 +85,7 @@ export default function StudentSubjects() {
 
         {/* Stats Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md transition-shadow animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                 <span className="text-2xl">📚</span>
@@ -101,7 +97,7 @@ export default function StudentSubjects() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md transition-shadow animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
                 <span className="text-2xl">✅</span>
@@ -113,7 +109,7 @@ export default function StudentSubjects() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md transition-shadow animate-slide-up" style={{ animationDelay: '300ms' }}>
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
                 <span className="text-2xl">📊</span>
@@ -134,12 +130,15 @@ export default function StudentSubjects() {
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">No Subjects Yet</h3>
             <p className="text-slate-600 mb-6">You haven't enrolled in any subjects. Contact your administrator to get started.</p>
-            <AppLink to="/student/dashboard" className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+            <button 
+              onClick={() => navigate("/student/dashboard")}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               Back to Dashboard
-            </AppLink>
+            </button>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -148,8 +147,7 @@ export default function StudentSubjects() {
               return (
                 <div 
                   key={subject.id} 
-                  className="group bg-white rounded-2xl shadow-md border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all cursor-pointer animate-slide-up overflow-hidden"
-                  style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                  className="group bg-white rounded-2xl shadow-md border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all overflow-hidden"
                 >
                   {/* Header with gradient */}
                   <div className={`bg-gradient-to-br ${colorScheme.bg} border-b ${colorScheme.border} p-6`}>
@@ -168,7 +166,7 @@ export default function StudentSubjects() {
 
                   {/* Body */}
                   <div className="p-6">
-                    <p className="text-sm text-slate-600 mb-4 line-clamp-3 leading-relaxed">
+                    <p className="text-sm text-slate-600 mb-4 leading-relaxed">
                       {subject.description || "Explore comprehensive course materials, assignments, and resources for this subject."}
                     </p>
 
@@ -185,21 +183,23 @@ export default function StudentSubjects() {
                     </div>
 
                     {/* Action Button */}
-                    <AppLink 
-                      to={`/student/subjects/${subject.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        window.location.href = `/student/subjects/${subject.id}`;
+                    <button 
+                      onClick={() => {
+                        console.log("=== BUTTON CLICKED ===");
+                        console.log("Subject ID:", subject.id);
+                        console.log("Subject:", subject);
+                        console.log("Navigating to:", `/student/subjects/${subject.id}`);
+                        navigate(`/student/subjects/${subject.id}`);
                       }}
-                      className={`block text-center bg-gradient-to-r ${colorScheme.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all`}
+                      className={`w-full text-center bg-gradient-to-r ${colorScheme.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all`}
                     >
                       <span className="flex items-center justify-center gap-2">
                         View Details
-                        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
                       </span>
-                    </AppLink>
+                    </button>
                   </div>
                 </div>
               );
@@ -208,46 +208,6 @@ export default function StudentSubjects() {
         )}
 
       </div>
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out;
-        }
-
-        .animate-slide-up {
-          animation: slide-up 0.6s ease-out;
-          animation-fill-mode: both;
-        }
-
-        .line-clamp-3 {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   );
 }

@@ -29,6 +29,7 @@ import TaskAttempt from './pages/student/TaskAttempt';
 import StudentAnalytics from './pages/student/StudentAnalytics';
 import Leaderboard from './pages/student/Leaderboard';
 import StudentProfile from './pages/student/StudentProfile';
+import StudentSubjectDetails from './pages/student/StudentSubjectDetails';
 
 // Components
 import Navbar from './components/Navbar';
@@ -234,6 +235,18 @@ function App() {
                     <div className="flex">
                       <Sidebar role="student" />
                       <StudentProfile />
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/subjects/:subjectId"
+                element={
+                  <ProtectedRoute role="student">
+                    <Navbar />
+                    <div className="flex">
+                      <Sidebar role="student" />
+                      <StudentSubjectDetails />
                     </div>
                   </ProtectedRoute>
                 }
