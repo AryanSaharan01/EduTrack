@@ -10,66 +10,51 @@ const Sidebar = ({ role }) => {
     { 
       label: "Dashboard", 
       path: "/teacher/dashboard",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      )
+      icon: "🏠",
+      gradient: "from-blue-500 to-cyan-500",
+      bgColor: "bg-blue-500"
     },
     { 
       label: "Subjects", 
       path: "/teacher/subjects",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-      )
+      icon: "📚",
+      gradient: "from-purple-500 to-pink-500",
+      bgColor: "bg-purple-500"
     },
     { 
       label: "Create Task", 
       path: "/teacher/tasks/create",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-      )
+      icon: "➕",
+      gradient: "from-green-500 to-emerald-500",
+      bgColor: "bg-green-500"
     },
     { 
       label: "Live Preview", 
       path: "/teacher/live-preview",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-      )
+      icon: "👁️",
+      gradient: "from-orange-500 to-red-500",
+      bgColor: "bg-orange-500"
     },
     { 
       label: "Analytics", 
       path: "/teacher/analytics",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
+      icon: "📊",
+      gradient: "from-teal-500 to-cyan-500",
+      bgColor: "bg-teal-500"
     },
     { 
       label: "Class Analytics", 
       path: "/teacher/class-analytics",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      )
+      icon: "👥",
+      gradient: "from-indigo-500 to-purple-500",
+      bgColor: "bg-indigo-500"
     },
     { 
       label: "Profile", 
       path: "/teacher/profile",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      )
+      icon: "👤",
+      gradient: "from-slate-600 to-slate-700",
+      bgColor: "bg-slate-600"
     }
   ];
 
@@ -77,65 +62,51 @@ const Sidebar = ({ role }) => {
     { 
       label: "Dashboard", 
       path: "/student/dashboard",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      )
+      icon: "🏠",
+      gradient: "from-blue-500 to-cyan-500",
+      bgColor: "bg-blue-500"
     },
     { 
       label: "Subjects", 
       path: "/student/subjects",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-      )
+      icon: "📚",
+      gradient: "from-purple-500 to-pink-500",
+      bgColor: "bg-purple-500"
     },
     { 
       label: "Lab Tasks", 
       path: "/student/tasks",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-        </svg>
-      )
+      icon: "📝",
+      gradient: "from-orange-500 to-red-500",
+      bgColor: "bg-orange-500"
     },
     { 
-      label: "Analytics", 
+      label: "Performance", 
       path: "/student/analytics",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
+      icon: "📈",
+      gradient: "from-teal-500 to-green-500",
+      bgColor: "bg-teal-500"
     },
     { 
       label: "Leaderboard", 
       path: "/student/leaderboard",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-        </svg>
-      )
+      icon: "🏆",
+      gradient: "from-yellow-500 to-orange-500",
+      bgColor: "bg-yellow-500"
     },
     { 
       label: "Notifications", 
       path: "/student/notifications",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-      )
+      icon: "🔔",
+      gradient: "from-pink-500 to-rose-500",
+      bgColor: "bg-pink-500"
     },
     { 
       label: "Profile", 
       path: "/student/profile",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      )
+      icon: "👤",
+      gradient: "from-slate-600 to-slate-700",
+      bgColor: "bg-slate-600"
     }
   ];
 
@@ -144,96 +115,198 @@ const Sidebar = ({ role }) => {
   return (
     <aside 
       className={`
-        ${isOpen ? "w-64" : "w-20"}
-        bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900
-        text-white 
+        ${isOpen ? "w-72" : "w-20"}
+        bg-white
+        border-r border-slate-200
         h-screen 
         sticky 
         top-16 
         transition-all 
         duration-300 
         overflow-hidden
-        shadow-2xl
-        border-r border-slate-700
+        shadow-lg
       `}
     >
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 text-left hover:bg-slate-700/50 transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 group"
+        className="w-full p-5 text-left hover:bg-gradient-to-r hover:from-teal-50 hover:to-blue-50 transition-all focus:outline-none group border-b border-slate-200"
         aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
       >
         <div className="flex items-center justify-between">
-          <span className="text-xl group-hover:scale-110 transition-transform">
-            {isOpen ? "◀" : "▶"}
-          </span>
-          {isOpen && (
-            <span className="text-xs text-slate-400 font-medium">
-              MENU
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            <div className={`
+              w-11 h-11 
+              bg-gradient-to-br from-teal-500 to-blue-600 
+              rounded-2xl 
+              flex items-center justify-center
+              group-hover:scale-110 
+              group-hover:rotate-12
+              transition-all
+              shadow-lg
+            `}>
+              <span className="text-white text-xl font-bold">
+                {isOpen ? "◀" : "▶"}
+              </span>
+            </div>
+            {isOpen && (
+              <div>
+                <div className="text-sm font-bold text-slate-800">Navigation</div>
+                <div className="text-xs text-slate-500">Quick access menu</div>
+              </div>
+            )}
+          </div>
         </div>
       </button>
 
       {/* Navigation */}
-      <nav className="space-y-1 p-3" role="navigation" aria-label="Main navigation">
-        {menu.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
+      <nav className="space-y-2 p-4" role="navigation" aria-label="Main navigation">
+        {menu.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`
+                group
+                relative
+                flex 
+                items-center
+                gap-4
+                px-4 
+                py-4
+                rounded-2xl
+                transition-all
+                duration-200
+                overflow-hidden
+                ${isActive 
+                  ? `bg-gradient-to-r ${item.gradient} text-white shadow-xl shadow-${item.bgColor}/25 scale-105` 
+                  : "text-slate-700 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 hover:scale-105"
+                }
+                ${!isOpen && "justify-center"}
+              `}
+              title={!isOpen ? item.label : undefined}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {/* Background Glow Effect */}
+              {isActive && (
+                <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient} opacity-20 blur-xl`} />
+              )}
+
+              {/* Icon */}
+              <span className={`
+                text-3xl
+                flex-shrink-0
+                ${isActive ? "scale-110 drop-shadow-lg" : "group-hover:scale-110"}
+                transition-transform
+                relative
+                z-10
+              `}>
+                {item.icon}
+              </span>
+
+              {/* Label */}
+              {isOpen && (
+                <div className="flex-1 relative z-10">
+                  <span className={`font-bold text-sm ${isActive ? "text-white" : "text-slate-800"}`}>
+                    {item.label}
+                  </span>
+                  {isActive && (
+                    <div className="h-0.5 bg-white/50 rounded-full mt-1" />
+                  )}
+                </div>
+              )}
+
+              {/* Active Indicator Arrow */}
+              {isOpen && isActive && (
+                <svg className="w-5 h-5 ml-auto relative z-10" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+
+              {/* Hover Glow Effect */}
+              {!isActive && (
+                <div className={`
+                  absolute inset-0 
+                  bg-gradient-to-r ${item.gradient}
+                  opacity-0 
+                  group-hover:opacity-10
+                  rounded-2xl
+                  transition-opacity
+                `} />
+              )}
+            </Link>
+          );
+        })}
+
+        {/* Logout Button */}
+        <div className="pt-4 mt-4 border-t border-slate-200">
+          <button
+            onClick={() => {/* Add logout logic */}}
             className={`
               group
+              relative
               flex 
               items-center
-              gap-3
+              gap-4
               px-4 
-              py-3.5
-              rounded-xl
+              py-4
+              rounded-2xl
               transition-all
               duration-200
-              ${location.pathname === item.path 
-                ? "bg-gradient-to-r from-teal-500 to-blue-500 text-white shadow-lg scale-105" 
-                : "text-slate-300 hover:bg-slate-700/50 hover:text-white hover:scale-105"
-              }
-              ${!isOpen && "justify-center px-2"}
+              text-red-600
+              hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50
+              hover:scale-105
+              hover:shadow-lg
+              w-full
+              overflow-hidden
+              ${!isOpen && "justify-center"}
             `}
-            title={!isOpen ? item.label : undefined}
-            aria-current={location.pathname === item.path ? "page" : undefined}
+            title={!isOpen ? "Logout" : undefined}
           >
-            <span className={`
-              ${location.pathname === item.path ? "text-white" : "text-slate-400 group-hover:text-teal-400"}
-              transition-colors
-              flex-shrink-0
-            `}>
-              {item.icon}
+            <span className="text-3xl flex-shrink-0 group-hover:scale-110 transition-transform relative z-10">
+              🚪
             </span>
             {isOpen && (
-              <span className="font-medium text-sm whitespace-nowrap">
-                {item.label}
-              </span>
+              <div className="flex-1 relative z-10">
+                <span className="font-bold text-sm">
+                  Logout
+                </span>
+              </div>
             )}
-            {isOpen && location.pathname === item.path && (
-              <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-            )}
-          </Link>
-        ))}
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity" />
+          </button>
+        </div>
       </nav>
 
-      {/* Bottom Badge */}
+      {/* Bottom Info Card - Expanded */}
       {isOpen && (
-        <div className="absolute bottom-4 left-3 right-3">
-          <div className="bg-gradient-to-r from-teal-500/10 to-blue-500/10 border border-teal-500/20 rounded-xl p-3 backdrop-blur">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
-              <div className="text-xs text-slate-400 font-medium">
-                Version 1.0.0
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="bg-gradient-to-br from-teal-500 to-blue-600 rounded-2xl p-4 shadow-xl text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
+                <div className="text-xs font-bold">
+                  System Active
+                </div>
+              </div>
+              <div className="text-sm font-semibold mb-1">
+                EduTrack Pro
+              </div>
+              <div className="text-xs text-teal-100">
+                Version 1.0.0 Beta
               </div>
             </div>
-            <div className="text-sm text-slate-300">
-              &copy; 2023 Your Company. All rights reserved.
-            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed View - Status Indicator */}
+      {!isOpen && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+          <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-xl hover:scale-110 transition-transform cursor-pointer">
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
           </div>
         </div>
       )}
