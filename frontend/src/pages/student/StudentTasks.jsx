@@ -10,52 +10,75 @@ export default function StudentTasks() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("=== Starting to fetch tasks ===");
-    
-    // Try the new endpoint first
-    api.get("/student/tasks")
-      .then(res => {
-        console.log("Tasks response:", res.data);
-        setTasks(res.data.tasks || []);
-      })
-      .catch(err => {
-        console.error("Error with /student/tasks, trying /student/subjects:", err);
+    const fetchTasks = async () => {
+      try {
+        // First get subjects
+        const subjectsRes = await api.get("/student/subjects");
+        console.log("✅ Subjects response:", subjectsRes.data);
         
-        // Fallback to subjects endpoint
-        return api.get("/student/subjects")
-          .then(res => {
-            console.log("Subjects response:", res.data);
-            const allTasks = [];
+        const subjects = subjectsRes.data.subjects || subjectsRes.data || [];
+        console.log("Subjects array:", subjects);
+        
+        if (!Array.isArray(subjects) || subjects.length === 0) {
+          console.log("No subjects found");
+          setTasks([]);
+          setLoading(false);
+          return;
+        }
+
+        // Now fetch each subject's tasks individually
+        const allTasks = [];
+        
+        for (const subject of subjects) {
+          console.log(`Fetching tasks for subject ${subject.id}...`);
+          
+          try {
+            const taskRes = await api.get(`/student/subjects/${subject.id}`);
+            console.log(`Full response for ${subject.name}:`, taskRes.data);
             
-            if (res.data.subjects && Array.isArray(res.data.subjects)) {
-              res.data.subjects.forEach(subject => {
-                if (subject.tasks && Array.isArray(subject.tasks)) {
-                  subject.tasks.forEach(task => {
-                    allTasks.push({
-                      ...task,
-                      subject: { 
-                        id: subject.id, 
-                        name: subject.name, 
-                        code: subject.code 
-                      }
-                    });
-                  });
-                }
+            // Check multiple possible locations for tasks array
+            const tasksArray = taskRes.data.tasks || taskRes.data.subject?.tasks || [];
+            console.log(`Tasks array for ${subject.name}:`, tasksArray);
+            
+            if (Array.isArray(tasksArray) && tasksArray.length > 0) {
+              tasksArray.forEach(task => {
+                console.log("Adding task:", task.title);
+                allTasks.push({
+                  id: task.id,
+                  title: task.title,
+                  description: task.description,
+                  difficulty: task.difficulty || 'medium',
+                  deadline: task.deadline,
+                  timeLimit: task.timeLimit || 45,
+                  status: task.status || 'published',
+                  questionCount: task.questions?.length || 0,
+                  subject: {
+                    id: subject.id,
+                    name: subject.name,
+                    code: subject.code
+                  }
+                });
               });
             }
-            
-            console.log("Extracted tasks:", allTasks);
-            setTasks(allTasks);
-          });
-      })
-      .catch(err => {
-        console.error("Final error:", err);
-        setError("Unable to load tasks. Please contact your instructor.");
-      })
-      .finally(() => {
-        console.log("=== Finished loading tasks ===");
+          } catch (err) {
+            console.error(`Error fetching tasks for subject ${subject.id}:`, err);
+          }
+        }
+        
+        console.log("✅ All tasks extracted:", allTasks);
+        console.log("✅ Total task count:", allTasks.length);
+        setTasks(allTasks);
         setLoading(false);
-      });
+        
+      } catch (err) {
+        console.error("❌ Error loading data:", err);
+        console.error("Error response:", err.response?.data);
+        setError("Failed to load tasks. Please try again.");
+        setLoading(false);
+      }
+    };
+
+    fetchTasks();
   }, []);
 
   const filteredTasks = tasks.filter(task => {
@@ -106,11 +129,6 @@ export default function StudentTasks() {
     );
   }
 
-  // Log current state for debugging
-  console.log("Current tasks:", tasks);
-  console.log("Filtered tasks:", filteredTasks);
-  console.log("Active filter:", filter);
-
   const difficultyColors = {
     easy: { gradient: "from-green-500 to-emerald-500", bg: "from-green-50 to-emerald-50", border: "border-green-200" },
     medium: { gradient: "from-yellow-500 to-orange-500", bg: "from-yellow-50 to-orange-50", border: "border-yellow-200" },
@@ -129,6 +147,18 @@ export default function StudentTasks() {
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         
+        {/* Debug Info */}
+        <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4">
+          <p className="text-sm font-mono text-blue-900">
+            🔍 Debug: Found {tasks.length} tasks total
+          </p>
+          {tasks.length > 0 && (
+            <p className="text-xs font-mono text-blue-700 mt-1">
+              First task: {tasks[0].title}
+            </p>
+          )}
+        </div>
+
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
@@ -152,13 +182,6 @@ export default function StudentTasks() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Debug Info - Remove this after fixing */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-sm text-blue-700 font-mono">
-            Debug: Total tasks = {tasks.length}, Filtered = {filteredTasks.length}, Filter = {filter}
-          </p>
         </div>
 
         {/* Filter Buttons */}
@@ -280,8 +303,8 @@ export default function StudentTasks() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTasks.map((task) => {
-              const diffColor = difficultyColors[task.difficulty || 'medium'];
-              const statusColor = statusColors[task.status || 'published'];
+              const diffColor = difficultyColors[task.difficulty];
+              const statusColor = statusColors[task.status];
               
               return (
                 <div 
@@ -316,7 +339,7 @@ export default function StudentTasks() {
                           </svg>
                           Subject
                         </span>
-                        <span className="font-semibold text-slate-900">{task.subject?.name || "N/A"}</span>
+                        <span className="font-semibold text-slate-900">{task.subject.name}</span>
                       </div>
                       
                       <div className="flex items-center justify-between text-sm">
@@ -338,7 +361,7 @@ export default function StudentTasks() {
                           </svg>
                           Questions
                         </span>
-                        <span className="font-semibold text-slate-900">{task.questionCount || task.questions?.length || 0}</span>
+                        <span className="font-semibold text-slate-900">{task.questionCount}</span>
                       </div>
 
                       <div className="flex items-center justify-between text-sm">
@@ -349,17 +372,14 @@ export default function StudentTasks() {
                           Difficulty
                         </span>
                         <span className={`font-bold ${diffColor.gradient} bg-gradient-to-r bg-clip-text text-transparent uppercase text-xs`}>
-                          {task.difficulty || 'Medium'}
+                          {task.difficulty}
                         </span>
                       </div>
                     </div>
 
                     {/* View Details Button */}
                     <button 
-                      onClick={() => {
-                        console.log("Navigating to task:", task.id);
-                        navigate(`/student/tasks/${task.id}`);
-                      }}
+                      onClick={() => navigate(`/student/tasks/${task.id}`)}
                       className={`w-full text-center bg-gradient-to-r ${diffColor.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2`}
                     >
                       View Details
