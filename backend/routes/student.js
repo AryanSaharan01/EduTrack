@@ -245,6 +245,65 @@ router.get('/analytics', verifyToken, async (req, res) => {
     }
 });
 
+router.get("/tasks", verifyToken, async (req, res) => {
+  try {
+    const studentId = req.user.id;
+
+    // Get all subjects the student is enrolled in
+    const subjects = await Subject.findAll({
+      include: [
+        {
+          model: User,
+          as: "students",
+          where: { id: studentId },
+          attributes: [],
+          through: { attributes: [] }
+        },
+        {
+          model: Task,
+          as: "tasks",
+          include: [
+            {
+              model: Question,
+              as: "questions",
+              attributes: ["id"]
+            }
+          ]
+        }
+      ]
+    });
+
+    // Extract all tasks with subject info
+    const allTasks = [];
+    subjects.forEach(subject => {
+      if (subject.tasks) {
+        subject.tasks.forEach(task => {
+          allTasks.push({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            difficulty: task.difficulty,
+            deadline: task.deadline,
+            timeLimit: task.timeLimit,
+            status: task.status,
+            questionCount: task.questions ? task.questions.length : 0,
+            subject: {
+              id: subject.id,
+              name: subject.name,
+              code: subject.code
+            }
+          });
+        });
+      }
+    });
+
+    res.json({ tasks: allTasks });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
 
 
