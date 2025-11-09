@@ -25,7 +25,7 @@ import TeacherProfile from './pages/teacher/TeacherProfile';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentSubjects from './pages/student/StudentSubjects';
 import StudentTasks from './pages/student/StudentTasks';
-import TaskAttempt from './pages/student/TaskAttempt';
+// import TaskAttempt from './pages/student/TaskAttempt';
 import StudentAnalytics from './pages/student/StudentAnalytics';
 import Leaderboard from './pages/student/Leaderboard';
 import StudentProfile from './pages/student/StudentProfile';
@@ -200,7 +200,19 @@ function App() {
                     <Navbar />
                     <div className="flex">
                       <Sidebar role="student" />
-                      <TaskAttempt />
+                      <StudentTaskDetails />
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/tasks/:taskId/attempt"
+                element={
+                  <ProtectedRoute role="student">
+                    <Navbar />
+                    <div className="flex">
+                      <Sidebar role="student" />
+                      <StudentTaskAttempt />
                     </div>
                   </ProtectedRoute>
                 }
@@ -249,30 +261,6 @@ function App() {
                     <div className="flex">
                       <Sidebar role="student" />
                       <StudentSubjectDetails />
-                    </div>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/student/tasks/:taskId"
-                element={
-                  <ProtectedRoute role="student">
-                    <Navbar />
-                    <div className="flex">
-                      <Sidebar role="student" />
-                      <StudentTaskDetails />
-                    </div>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/student/tasks/:taskId/attempt"
-                element={
-                  <ProtectedRoute role="student">
-                    <Navbar />
-                    <div className="flex">
-                      <Sidebar role="student" />
-                      <StudentTaskAttempt />
                     </div>
                   </ProtectedRoute>
                 }

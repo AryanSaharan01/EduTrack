@@ -1,112 +1,82 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../utils/api.js";
+import Editor from "@monaco-editor/react";
 
 export default function StudentTaskAttempt() {
   const { taskId } = useParams();
   const navigate = useNavigate();
+  
   const [task, setTask] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [warningCount, setWarningCount] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [showWarning, setShowWarning] = useState(false);
+  const [testOutput, setTestOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  
   const timerRef = useRef(null);
+  const fullscreenRef = useRef(null);
 
-  // Anti-cheating: Track visibility changes
+  // Fetch task and questions
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setWarningCount(prev => {
-          const newCount = prev + 1;
-          if (newCount >= 2) {
-            handleAutoSubmit("Tab switch detected");
-          } else {
-            alert(`Warning ${newCount}/2: Do not switch tabs! Next violation will auto-submit.`);
+    const fetchTask = async () => {
+      try {
+        const subjectsRes = await api.get("/student/subjects");
+        const subjects = subjectsRes.data.subjects || [];
+        
+        let foundTask = null;
+        for (const subject of subjects) {
+          const subjectRes = await api.get(`/student/subjects/${subject.id}`);
+          const tasks = subjectRes.data.tasks || [];
+          
+          foundTask = tasks.find(t => t.id === parseInt(taskId));
+          if (foundTask) {
+            foundTask.subject = { id: subject.id, name: subject.name, code: subject.code };
+            break;
           }
-          return newCount;
-        });
-      }
-    };
-
-    const handleBlur = () => {
-      setWarningCount(prev => {
-        const newCount = prev + 1;
-        if (newCount >= 2) {
-          handleAutoSubmit("Window minimized detected");
-        } else {
-          alert(`Warning ${newCount}/2: Stay focused! Next violation will auto-submit.`);
         }
-        return newCount;
-      });
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleBlur);
-
-    // Request fullscreen
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error("Could not enter fullscreen:", err);
-      });
-    }
-
-    // Prevent right-click
-    const preventRightClick = (e) => e.preventDefault();
-    document.addEventListener("contextmenu", preventRightClick);
-
-    // Prevent F12, Ctrl+Shift+I, etc.
-    const preventDevTools = (e) => {
-      if (
-        e.keyCode === 123 || // F12
-        (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
-        (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
-        (e.ctrlKey && e.keyCode === 85) // Ctrl+U
-      ) {
-        e.preventDefault();
-        return false;
+        
+        if (foundTask) {
+          setTask(foundTask);
+          setQuestions(foundTask.questions || []);
+          setTimeRemaining((foundTask.timeLimit || 45) * 60);
+          
+          // Initialize answers
+          const initialAnswers = {};
+          (foundTask.questions || []).forEach(q => {
+            initialAnswers[q.id] = q.starterCode || "# Write your code here\n";
+          });
+          setAnswers(initialAnswers);
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching task:", err);
+        setLoading(false);
       }
     };
-    document.addEventListener("keydown", preventDevTools);
 
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("contextmenu", preventRightClick);
-      document.removeEventListener("keydown", preventDevTools);
-      
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(err => console.error(err));
-      }
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
+    fetchTask();
+  }, [taskId]);
 
-  // Load task data
+  // Enter fullscreen
   useEffect(() => {
-    api.get(`/student/tasks/${taskId}/attempt`)
-      .then(res => {
-        setTask(res.data.task);
-        setQuestions(res.data.questions || []);
-        setTimeRemaining((res.data.task.timeLimit || 45) * 60); // Convert to seconds
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Failed to load task");
-        navigate("/student/tasks");
-      });
-  }, [taskId, navigate]);
+    if (!loading && task) {
+      enterFullscreen();
+    }
+  }, [loading, task]);
 
   // Timer countdown
   useEffect(() => {
-    if (timeRemaining > 0) {
+    if (timeRemaining > 0 && isFullscreen) {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            handleAutoSubmit("Time expired");
+            handleAutoSubmit("Time's up!");
             return 0;
           }
           return prev - 1;
@@ -115,59 +85,142 @@ export default function StudentTaskAttempt() {
     }
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timeRemaining, isFullscreen]);
+
+  // Anti-cheating: Detect tab switching
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isFullscreen) {
+        setTabSwitchCount(prev => {
+          const newCount = prev + 1;
+          if (newCount >= 3) {
+            handleAutoSubmit("Too many tab switches detected!");
+          } else {
+            setShowWarning(true);
+            setTimeout(() => setShowWarning(false), 3000);
+          }
+          return newCount;
+        });
       }
     };
-  }, [timeRemaining]);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isFullscreen]);
+
+  // Prevent right-click and keyboard shortcuts
+  useEffect(() => {
+    const preventActions = (e) => {
+      // Prevent right-click
+      if (e.type === "contextmenu") {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Prevent common shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        if (["c", "v", "x", "a", "s", "u", "p", "f"].includes(e.key.toLowerCase())) {
+          if (!["c", "v", "x", "a"].includes(e.key.toLowerCase())) {
+            e.preventDefault();
+            return false;
+          }
+        }
+      }
+      
+      // Prevent F12, F11, etc
+      if (["F11", "F12"].includes(e.key)) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    document.addEventListener("contextmenu", preventActions);
+    document.addEventListener("keydown", preventActions);
+    
+    return () => {
+      document.removeEventListener("contextmenu", preventActions);
+      document.removeEventListener("keydown", preventActions);
+    };
+  }, []);
+
+  const enterFullscreen = () => {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().then(() => setIsFullscreen(true));
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+      setIsFullscreen(true);
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+      setIsFullscreen(true);
+    }
+  };
+
+  const exitFullscreen = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+    setIsFullscreen(false);
+  };
 
   const handleAutoSubmit = async (reason) => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
-    try {
-      await api.post(`/student/tasks/${taskId}/submit`, {
-        answers,
-        autoSubmit: true,
-        reason,
-        score: 0
-      });
-      
-      alert(`Test auto-submitted: ${reason}. Score: 0`);
-      navigate("/student/tasks");
-    } catch (error) {
-      console.error("Auto-submit failed:", error);
-    }
-  };
-
-  const handleManualSubmit = async () => {
-    if (isSubmitting) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    exitFullscreen();
     
-    const confirmed = window.confirm("Are you sure you want to submit? You cannot change answers after submission.");
-    if (!confirmed) return;
+    alert(`Test auto-submitted: ${reason}`);
+    await handleSubmit(true);
+  };
 
-    setIsSubmitting(true);
-
+  const handleSubmit = async (isAuto = false) => {
     try {
-      const response = await api.post(`/student/tasks/${taskId}/submit`, {
-        answers,
-        autoSubmit: false
-      });
+      const submission = {
+        taskId: parseInt(taskId),
+        answers: Object.entries(answers).map(([questionId, code]) => ({
+          questionId: parseInt(questionId),
+          code: code
+        })),
+        tabSwitchCount,
+        timeTaken: ((task.timeLimit || 45) * 60) - timeRemaining
+      };
+
+      await api.post("/student/submissions", submission);
       
-      alert(`Test submitted successfully! Score: ${response.data.score}/${response.data.totalScore}`);
-      navigate("/student/tasks");
-    } catch (error) {
-      console.error("Submit failed:", error);
-      alert("Failed to submit. Please try again.");
-      setIsSubmitting(false);
+      exitFullscreen();
+      navigate(`/student/tasks/${taskId}/result`, { 
+        state: { message: isAuto ? "Test auto-submitted" : "Test submitted successfully" }
+      });
+    } catch (err) {
+      console.error("Error submitting test:", err);
+      alert("Failed to submit test. Please try again.");
     }
   };
 
-  const handleAnswerChange = (questionId, value) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
+  const runCode = async () => {
+    setIsRunning(true);
+    setTestOutput("Running code...");
+    
+    const currentQuestion = questions[currentQuestionIndex];
+    const code = answers[currentQuestion.id];
+    
+    try {
+      const response = await api.post("/student/run-code", {
+        code,
+        language: currentQuestion.language || "python",
+        testCases: currentQuestion.testCases || []
+      });
+      
+      setTestOutput(response.data.output || "Code executed successfully");
+    } catch (err) {
+      setTestOutput(err.response?.data?.error || "Error running code");
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -176,113 +229,253 @@ export default function StudentTaskAttempt() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!task) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-center text-white">
-          <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="font-medium">Loading test...</p>
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl animate-spin mx-auto mb-4" />
+          <p className="text-white font-medium">Loading test...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      
-      {/* Header with Timer */}
-      <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white mb-1">{task.title}</h1>
-            <p className="text-sm text-slate-400">Questions: {questions.length} | Warnings: {warningCount}/2</p>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            {/* Timer */}
-            <div className="flex items-center gap-3 bg-slate-700 px-6 py-3 rounded-xl border border-slate-600">
-              <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p className="text-xs text-slate-400">Time Remaining</p>
-                <p className={`text-2xl font-bold ${timeRemaining < 300 ? 'text-red-400' : 'text-teal-400'}`}>
-                  {formatTime(timeRemaining)}
-                </p>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              onClick={handleManualSubmit}
-              disabled={isSubmitting}
-              className="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Test"}
-            </button>
-          </div>
+  if (!task || questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="text-center text-white">
+          <p className="text-xl mb-4">No questions available</p>
+          <button onClick={() => navigate("/student/tasks")} className="px-6 py-3 bg-teal-500 rounded-lg">
+            Back to Tasks
+          </button>
         </div>
       </div>
+    );
+  }
 
+  const currentQuestion = questions[currentQuestionIndex];
+
+  return (
+    <div className="h-screen bg-slate-900 flex flex-col overflow-hidden" ref={fullscreenRef}>
+      
       {/* Warning Banner */}
-      {warningCount > 0 && (
-        <div className="bg-red-900 border-b border-red-700 px-6 py-3">
-          <p className="text-center text-red-200 font-semibold">
-            ⚠️ Warning: {warningCount}/2 violations detected. One more violation will auto-submit with 0 marks!
-          </p>
+      {showWarning && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+          <div className="bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl font-bold">
+            ⚠️ Warning: Tab switch detected! ({3 - tabSwitchCount} warnings left)
+          </div>
         </div>
       )}
 
-      {/* Questions */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="space-y-8">
-          {questions.map((question, index) => (
-            <div key={question.id} className="bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-xl">
-              <div className="flex items-start gap-4 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center font-bold text-lg flex-shrink-0">
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-2">{question.title}</h3>
-                  <p className="text-slate-300 leading-relaxed">{question.description}</p>
-                  {question.marks && (
-                    <p className="text-sm text-teal-400 mt-2">Marks: {question.marks}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Answer Input */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-400 mb-3">Your Answer:</label>
-                <textarea
-                  value={answers[question.id] || ""}
-                  onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                  placeholder="Write your code here..."
-                  rows={12}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
-                  spellCheck="false"
-                />
-                <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
-                  <span>{(answers[question.id] || "").length} characters</span>
-                  <span className="text-slate-600">Ctrl+Enter to format</span>
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Top Bar */}
+      <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-white font-semibold">LIVE TEST</span>
+          </div>
+          <div className="h-6 w-px bg-slate-600"></div>
+          <h2 className="text-white font-bold text-lg">{task.title}</h2>
         </div>
-
-        {/* Bottom Submit */}
-        <div className="mt-8 flex justify-center">
+        
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 bg-slate-700 px-4 py-2 rounded-lg">
+            <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className={`font-mono font-bold text-lg ${timeRemaining < 300 ? 'text-red-400' : 'text-white'}`}>
+              {formatTime(timeRemaining)}
+            </span>
+          </div>
+          
           <button
-            onClick={handleManualSubmit}
-            disabled={isSubmitting}
-            className="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white text-lg font-bold px-12 py-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all disabled:cursor-not-allowed"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to submit? You cannot change your answers after submission.")) {
+                handleSubmit(false);
+              }
+            }}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold px-6 py-2 rounded-lg transition-all"
           >
-            {isSubmitting ? "Submitting..." : "Submit Test"}
+            Submit Test
           </button>
         </div>
       </div>
 
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* Left: Question Panel */}
+        <div className="w-1/3 bg-slate-800 border-r border-slate-700 flex flex-col">
+          
+          {/* Question Navigation */}
+          <div className="p-4 border-b border-slate-700">
+            <div className="flex gap-2 flex-wrap">
+              {questions.map((q, idx) => (
+                <button
+                  key={q.id}
+                  onClick={() => setCurrentQuestionIndex(idx)}
+                  className={`w-10 h-10 rounded-lg font-bold transition-all ${
+                    idx === currentQuestionIndex
+                      ? 'bg-teal-500 text-white shadow-lg scale-110'
+                      : answers[q.id] && answers[q.id].trim() !== (q.starterCode || "# Write your code here\n").trim()
+                      ? 'bg-green-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Question Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="mb-4">
+              <span className="px-3 py-1 bg-teal-500/20 text-teal-400 rounded-lg text-sm font-semibold">
+                Question {currentQuestionIndex + 1} of {questions.length}
+              </span>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-4">{currentQuestion.title}</h3>
+            
+            <div className="prose prose-invert max-w-none">
+              <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">
+                {currentQuestion.description}
+              </p>
+            </div>
+
+            {currentQuestion.difficulty && (
+              <div className="mt-4">
+                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                  currentQuestion.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
+                  currentQuestion.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-red-500/20 text-red-400'
+                }`}>
+                  {currentQuestion.difficulty.toUpperCase()}
+                </span>
+              </div>
+            )}
+
+            {currentQuestion.testCases && currentQuestion.testCases.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-white font-bold mb-3">Example Test Cases:</h4>
+                <div className="space-y-3">
+                  {currentQuestion.testCases.slice(0, 2).map((tc, idx) => (
+                    <div key={idx} className="bg-slate-700 rounded-lg p-4">
+                      <div className="text-sm text-slate-400 mb-1">Input:</div>
+                      <pre className="text-teal-400 font-mono text-sm mb-2">{tc.input}</pre>
+                      <div className="text-sm text-slate-400 mb-1">Expected Output:</div>
+                      <pre className="text-green-400 font-mono text-sm">{tc.expectedOutput}</pre>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Code Editor */}
+        <div className="flex-1 flex flex-col bg-slate-900">
+          
+          {/* Editor Header */}
+          <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-slate-400 text-sm font-medium">Code Editor</span>
+              <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-mono">
+                {currentQuestion.language || "python"}
+              </span>
+            </div>
+            
+            <button
+              onClick={runCode}
+              disabled={isRunning}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold px-4 py-2 rounded-lg transition-all"
+            >
+              {isRunning ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Running...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  </svg>
+                  Run Code
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Monaco Editor */}
+          <div className="flex-1">
+            <Editor
+              height="100%"
+              language={currentQuestion.language || "python"}
+              theme="vs-dark"
+              value={answers[currentQuestion.id] || ""}
+              onChange={(value) => {
+                setAnswers(prev => ({
+                  ...prev,
+                  [currentQuestion.id]: value
+                }));
+              }}
+              options={{
+                fontSize: 14,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 4,
+                wordWrap: "on"
+              }}
+            />
+          </div>
+
+          {/* Output Panel */}
+          {testOutput && (
+            <div className="h-48 bg-slate-800 border-t border-slate-700 p-4 overflow-y-auto">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-slate-400 text-sm font-semibold">Output:</span>
+              </div>
+              <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">{testOutput}</pre>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="bg-slate-800 border-t border-slate-700 px-6 py-4 flex justify-between">
+        <button
+          onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+          disabled={currentQuestionIndex === 0}
+          className="flex items-center gap-2 px-6 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold rounded-lg transition-all"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Previous
+        </button>
+
+        <div className="text-center">
+          <p className="text-slate-400 text-sm">
+            Question {currentQuestionIndex + 1} of {questions.length}
+          </p>
+          <p className="text-slate-500 text-xs mt-1">
+            {Object.keys(answers).filter(id => answers[id].trim() !== (questions.find(q => q.id === parseInt(id))?.starterCode || "").trim()).length} answered
+          </p>
+        </div>
+
+        <button
+          onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+          disabled={currentQuestionIndex === questions.length - 1}
+          className="flex items-center gap-2 px-6 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold rounded-lg transition-all"
+        >
+          Next
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

@@ -10,18 +10,53 @@ export default function StudentTaskDetails() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api.get(`/student/tasks/${taskId}`)
-      .then(res => {
-        setTask(res.data.task);
-      })
-      .catch(err => {
-        console.error(err);
+    const fetchTaskDetails = async () => {
+      try {
+        console.log("Fetching task details for ID:", taskId);
+        
+        // Get all subjects first
+        const subjectsRes = await api.get("/student/subjects");
+        const subjects = subjectsRes.data.subjects || [];
+        
+        let foundTask = null;
+        
+        // Search through each subject to find the task
+        for (const subject of subjects) {
+          const subjectRes = await api.get(`/student/subjects/${subject.id}`);
+          const tasks = subjectRes.data.tasks || [];
+          
+          foundTask = tasks.find(t => t.id === parseInt(taskId));
+          
+          if (foundTask) {
+            console.log("Task found:", foundTask);
+            // Add subject info
+            foundTask.subject = {
+              id: subject.id,
+              name: subject.name,
+              code: subject.code
+            };
+            break;
+          }
+        }
+        
+        if (foundTask) {
+          setTask(foundTask);
+        } else {
+          setError("Task not found");
+        }
+      } catch (err) {
+        console.error("Error fetching task:", err);
         setError("Failed to load task details");
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTaskDetails();
   }, [taskId]);
 
   const handleStartTest = () => {
+    console.log("Starting test for task:", taskId);
     navigate(`/student/tasks/${taskId}/attempt`);
   };
 
@@ -58,6 +93,12 @@ export default function StudentTaskDetails() {
     );
   }
 
+  const difficultyColors = {
+    easy: "from-green-500 to-emerald-500",
+    medium: "from-yellow-500 to-orange-500",
+    hard: "from-red-500 to-pink-500"
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-6 py-8">
@@ -77,15 +118,23 @@ export default function StudentTaskDetails() {
         <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
           
           {/* Header */}
-          <div className="bg-gradient-to-br from-slate-50 to-white p-8 border-b border-slate-200">
-            <h1 className="text-4xl font-bold text-slate-900 mb-3">{task.title}</h1>
-            <p className="text-base text-slate-600 leading-relaxed">{task.description || "Write a function to generate Fibonacci numbers"}</p>
+          <div className={`bg-gradient-to-br ${difficultyColors[task.difficulty || 'medium']} p-8`}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-lg text-sm font-bold">
+                {task.subject?.name || "Programming"}
+              </span>
+              <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-lg text-sm font-bold uppercase">
+                {task.difficulty || "Medium"}
+              </span>
+            </div>
+            <h1 className="text-4xl font-bold text-white mb-3">{task.title}</h1>
+            <p className="text-lg text-white/90 leading-relaxed">{task.description || "Complete this programming assignment"}</p>
           </div>
 
           {/* Info Grid */}
           <div className="grid md:grid-cols-2 gap-6 p-8 bg-slate-50">
             
-            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,22 +143,29 @@ export default function StudentTaskDetails() {
                 </div>
                 <p className="text-sm font-semibold text-slate-500">Subject</p>
               </div>
-              <p className="text-xl font-bold text-slate-900">{task.subject?.name || "Python Programming"}</p>
+              <p className="text-xl font-bold text-slate-900">{task.subject?.name}</p>
+              <p className="text-sm text-slate-500 mt-1">{task.subject?.code}</p>
             </div>
 
-            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <p className="text-sm font-semibold text-slate-500">Deadline</p>
               </div>
-              <p className="text-xl font-bold text-slate-900">{new Date(task.deadline).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</p>
+              <p className="text-xl font-bold text-slate-900">
+                {task.deadline ? new Date(task.deadline).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                }) : "No deadline"}
+              </p>
             </div>
 
-            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,7 +177,7 @@ export default function StudentTaskDetails() {
               <p className="text-xl font-bold text-slate-900">{task.timeLimit || 45} minutes</p>
             </div>
 
-            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +186,7 @@ export default function StudentTaskDetails() {
                 </div>
                 <p className="text-sm font-semibold text-slate-500">Questions</p>
               </div>
-              <p className="text-xl font-bold text-slate-900">{task.questionCount || 2} questions</p>
+              <p className="text-xl font-bold text-slate-900">{task.questionCount || task.questions?.length || 0} questions</p>
             </div>
 
           </div>
@@ -146,20 +202,34 @@ export default function StudentTaskDetails() {
               </div>
               <ul className="space-y-3 text-slate-700">
                 <li className="flex items-start gap-3">
-                  <span className="text-orange-600 mt-1">•</span>
-                  <span className="text-base leading-relaxed">Do not switch tabs or minimize window (auto-submission will occur)</span>
+                  <span className="text-orange-600 mt-1 text-xl">•</span>
+                  <span className="text-base leading-relaxed">
+                    <strong>Do not switch tabs or minimize window</strong> - Auto-submission will occur if you leave the test page
+                  </span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-orange-600 mt-1">•</span>
-                  <span className="text-base leading-relaxed">Complete within the time limit</span>
+                  <span className="text-orange-600 mt-1 text-xl">•</span>
+                  <span className="text-base leading-relaxed">
+                    <strong>Complete within the time limit</strong> - Test will auto-submit when time expires
+                  </span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-orange-600 mt-1">•</span>
-                  <span className="text-base leading-relaxed">Test your code before final submission</span>
+                  <span className="text-orange-600 mt-1 text-xl">•</span>
+                  <span className="text-base leading-relaxed">
+                    <strong>Test your code before submission</strong> - Use the "Run Code" button to verify
+                  </span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-orange-600 mt-1">•</span>
-                  <span className="text-base leading-relaxed">You cannot pause once started</span>
+                  <span className="text-orange-600 mt-1 text-xl">•</span>
+                  <span className="text-base leading-relaxed">
+                    <strong>Cannot pause once started</strong> - Make sure you have uninterrupted time
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-orange-600 mt-1 text-xl">•</span>
+                  <span className="text-base leading-relaxed">
+                    <strong>Fullscreen mode required</strong> - Test will run in fullscreen for security
+                  </span>
                 </li>
               </ul>
             </div>
@@ -169,13 +239,20 @@ export default function StudentTaskDetails() {
           <div className="p-8 pt-0">
             <button
               onClick={handleStartTest}
-              className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white text-lg font-bold py-5 rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+              className={`w-full bg-gradient-to-r ${difficultyColors[task.difficulty || 'medium']} hover:shadow-2xl text-white text-lg font-bold py-5 rounded-2xl shadow-xl transform hover:scale-[1.02] transition-all flex items-center justify-center gap-3`}
             >
-              <span>Start Test</span>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Start Test Now</span>
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </button>
+            <p className="text-center text-sm text-slate-500 mt-4">
+              By clicking "Start Test Now", you agree to the anti-cheating policies
+            </p>
           </div>
 
         </div>
