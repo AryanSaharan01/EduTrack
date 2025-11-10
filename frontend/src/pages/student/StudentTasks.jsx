@@ -26,7 +26,7 @@ export default function StudentTasks() {
           return;
         }
 
-        // Now fetch each subject's tasks individually
+        // Now fetch each subject's tasks with questions
         const allTasks = [];
         
         for (const subject of subjects) {
@@ -34,15 +34,15 @@ export default function StudentTasks() {
           
           try {
             const taskRes = await api.get(`/student/subjects/${subject.id}`);
-            console.log(`Full response for ${subject.name}:`, taskRes.data);
+            console.log(`✅ Full response for ${subject.name}:`, taskRes.data);
             
-            // Check multiple possible locations for tasks array
-            const tasksArray = taskRes.data.tasks || taskRes.data.subject?.tasks || [];
-            console.log(`Tasks array for ${subject.name}:`, tasksArray);
+            const tasksArray = taskRes.data.tasks || [];
+            console.log(`✅ Tasks with questions for ${subject.name}:`, tasksArray);
             
             if (Array.isArray(tasksArray) && tasksArray.length > 0) {
               tasksArray.forEach(task => {
-                console.log("Adding task:", task.title);
+                console.log(`✅ Task: ${task.title}, Questions: ${task.questions?.length || task.questionCount || 0}`);
+                
                 allTasks.push({
                   id: task.id,
                   title: task.title,
@@ -51,7 +51,8 @@ export default function StudentTasks() {
                   deadline: task.deadline,
                   timeLimit: task.timeLimit || 45,
                   status: task.status || 'published',
-                  questionCount: task.questions?.length || 0,
+                  questionCount: task.questionCount || task.questions?.length || 0,
+                  questions: task.questions || [],
                   subject: {
                     id: subject.id,
                     name: subject.name,
@@ -61,18 +62,20 @@ export default function StudentTasks() {
               });
             }
           } catch (err) {
-            console.error(`Error fetching tasks for subject ${subject.id}:`, err);
+            console.error(`❌ Error fetching tasks for subject ${subject.id}:`, err);
           }
         }
         
-        console.log("✅ All tasks extracted:", allTasks);
-        console.log("✅ Total task count:", allTasks.length);
+        console.log("✅✅ ALL TASKS WITH QUESTION COUNTS:", allTasks.map(t => ({ 
+          title: t.title, 
+          questions: t.questionCount 
+        })));
+        
         setTasks(allTasks);
         setLoading(false);
         
       } catch (err) {
         console.error("❌ Error loading data:", err);
-        console.error("Error response:", err.response?.data);
         setError("Failed to load tasks. Please try again.");
         setLoading(false);
       }
@@ -147,18 +150,6 @@ export default function StudentTasks() {
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         
-        {/* Debug Info */}
-        <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4">
-          <p className="text-sm font-mono text-blue-900">
-            🔍 Debug: Found {tasks.length} tasks total
-          </p>
-          {tasks.length > 0 && (
-            <p className="text-xs font-mono text-blue-700 mt-1">
-              First task: {tasks[0].title}
-            </p>
-          )}
-        </div>
-
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
