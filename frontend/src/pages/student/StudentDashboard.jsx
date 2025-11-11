@@ -37,12 +37,19 @@ export default function StudentDashboard() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white rounded-2xl p-8 shadow-xl border border-red-200 max-w-md animate-shake">
+        <div className="bg-white rounded-2xl p-8 shadow-xl border border-red-200 max-w-md">
           <div className="text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
               <span className="text-4xl">⚠️</span>
             </div>
-            <p className="text-red-600 font-semibold">{error}</p>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Error Loading Dashboard</h2>
+            <p className="text-red-600 font-semibold mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl hover:scale-105 transition-all"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -51,6 +58,160 @@ export default function StudentDashboard() {
 
   if (!data) return null;
 
+  // Check if student is enrolled
+  if (!data.enrolled) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center py-8">
+        <div className="w-full max-w-7xl mx-auto px-6 space-y-6">
+          
+          {/* Welcome Header for Non-Enrolled Students */}
+          <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm font-semibold mb-3">
+                  <span className="text-xl">⚠️</span>
+                  <span>Not Enrolled</span>
+                </div>
+                <h1 className="text-4xl font-bold text-slate-900 mb-2">
+                  <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
+                    Welcome, {data.student?.name || 'Student'}!
+                  </span>
+                </h1>
+                <p className="text-base text-slate-600">
+                  You have not been enrolled by any faculty yet. Please contact your teacher to get enrolled in courses.
+                </p>
+              </div>
+              <div className="hidden sm:block">
+                <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-4xl">📚</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Empty Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">📚</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-500 font-semibold mb-1">Subjects Enrolled</p>
+                  <p className="text-3xl font-bold text-slate-900">0</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">No subjects yet</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-6 border border-orange-200">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">📝</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-500 font-semibold mb-1">Total Tasks</p>
+                  <p className="text-3xl font-bold text-slate-900">0</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">No tasks assigned</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-200">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">✅</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-500 font-semibold mb-1">Submitted Tasks</p>
+                  <p className="text-3xl font-bold text-slate-900">0</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">No submissions</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-500 font-semibold mb-1">Average Marks</p>
+                  <p className="text-3xl font-bold text-slate-900">0.0</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">No data yet</p>
+            </div>
+
+          </div>
+
+          {/* Information Card */}
+          <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 rounded-2xl p-8 border border-blue-200">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <span className="text-3xl">ℹ️</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">What&apos;s Next?</h3>
+                <div className="space-y-3 text-slate-700">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <p className="text-base">
+                      <strong>Contact your teacher</strong> to request enrollment in their courses
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <p className="text-base">
+                      Once enrolled, you&apos;ll be able to <strong>view subjects, access tasks, and track your progress</strong>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <p className="text-base">
+                      Your dashboard will be populated with <strong>assignments, grades, and analytics</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Empty State Illustration */}
+          <div className="bg-white rounded-2xl shadow-md p-12 text-center border border-slate-200">
+            <div className="w-32 h-32 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-6xl">🎓</span>
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3">Your Learning Journey Awaits</h3>
+            <p className="text-slate-600 max-w-md mx-auto mb-6">
+              Once you&apos;re enrolled, this dashboard will come alive with your courses, assignments, and achievements.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <AppLink
+                to="/student/profile"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                View Profile
+              </AppLink>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // Existing dashboard for enrolled students
   const quotes = [
     { text: "The only way to learn a new programming language is by writing programs in it.", author: "Dennis Ritchie" },
     { text: "Code is like humor. When you have to explain it, it's bad.", author: "Cory House" },
@@ -84,11 +245,11 @@ export default function StudentDashboard() {
               </div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
                 <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                  Welcome back, {data.student.name}!
+                  Welcome back, {data.student?.name || 'Student'}!
                 </span> 👋
               </h1>
               <p className="text-base text-slate-600">
-                Ready to conquer today's challenges? Let's make it count!
+                Ready to conquer today&apos;s challenges? Let&apos;s make it count!
               </p>
             </div>
             <div className="hidden sm:block">
@@ -109,7 +270,7 @@ export default function StudentDashboard() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-slate-500 font-semibold mb-1">Subjects Enrolled</p>
-                <p className="text-3xl font-bold text-slate-900">{data.subjects.length}</p>
+                <p className="text-3xl font-bold text-slate-900">{data.subjects?.length || 0}</p>
               </div>
             </div>
             <AppLink to="/student/subjects" className="text-sm text-purple-600 hover:text-purple-700 font-semibold flex items-center gap-1 group">
@@ -127,7 +288,7 @@ export default function StudentDashboard() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-slate-500 font-semibold mb-1">Pending Tasks</p>
-                <p className="text-3xl font-bold text-slate-900">{data.upcomingTasks.length}</p>
+                <p className="text-3xl font-bold text-slate-900">{data.upcomingTasks?.length || 0}</p>
               </div>
             </div>
             <AppLink to="/student/tasks" className="text-sm text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1 group">
@@ -191,7 +352,7 @@ export default function StudentDashboard() {
                 <h3 className="text-xl font-bold text-slate-800">Quote of the Day</h3>
               </div>
               <blockquote className="text-base italic text-slate-700 leading-relaxed mb-3 pl-4 border-l-4 border-teal-400">
-                "{randomQuote.text}"
+                &ldquo;{randomQuote.text}&rdquo;
               </blockquote>
               <p className="text-sm text-slate-600 font-semibold">— {randomQuote.author}</p>
             </div>
@@ -221,14 +382,14 @@ export default function StudentDashboard() {
                   </div>
                   <h2 className="text-xl font-bold text-slate-800">Notifications</h2>
                 </div>
-                {data.notifications.length > 0 && (
+                {data.notifications?.length > 0 && (
                   <span className="px-2.5 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold animate-pulse">
                     {data.notifications.length}
                   </span>
                 )}
               </div>
 
-              {data.notifications.length === 0 ? (
+              {!data.notifications || data.notifications.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="text-3xl">✨</span>
@@ -259,7 +420,7 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {data.notifications.length > 5 && (
+              {data.notifications?.length > 5 && (
                 <AppLink 
                   to="/student/notifications" 
                   className="block text-center text-sm text-teal-600 hover:text-teal-700 font-semibold mt-4 py-2 hover:bg-teal-50 rounded-lg transition-colors"
@@ -292,7 +453,7 @@ export default function StudentDashboard() {
             </AppLink>
           </div>
 
-          {data.upcomingTasks.length === 0 ? (
+          {!data.upcomingTasks || data.upcomingTasks.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
                 <span className="text-4xl">✅</span>

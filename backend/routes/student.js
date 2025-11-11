@@ -66,23 +66,38 @@ router.get('/dashboard', verifyToken, async (req, res) => {
              WHERE e.student_id = $1 AND t.status = 'published'`,
             [student.id]
         );
-        const stats = statsResult.rows[0];
+        
+        // Handle stats with default values
+        const stats = statsResult.rows[0] || { total_tasks: 0, submitted_tasks: 0, avg_marks: 0 };
+
+        // Determine if student is enrolled anywhere
+        const enrolledCheck = await pool.query(
+            `SELECT 1 FROM lms.enrollments e WHERE e.student_id = $1 LIMIT 1`, 
+            [student.id]
+        );
+        const enrolled = enrolledCheck.rows.length > 0;
 
         res.json({
             success: true,
             data: {
                 student: {
-                    id: student.id, name: student.name, email: student.email,
-                    roll_no: student.roll_no, course: student.course, section: student.section,
+                    id: student.id, 
+                    name: student.name, 
+                    email: student.email,
+                    roll_no: student.roll_no, 
+                    course: student.course, 
+                    section: student.section,
                 },
                 subjects: subjectsResult.rows,
                 upcomingTasks: upcomingTasksResult.rows,
                 notifications: notificationsResult.rows,
-                rank: null, streak: 0,
+                rank: null,
+                streak: 0,
+                enrolled,
                 stats: {
                     totalTasks: parseInt(stats.total_tasks) || 0,
                     submittedTasks: parseInt(stats.submitted_tasks) || 0,
-                    averageMarks: parseFloat(stats.avg_marks).toFixed(2) || 0,
+                    averageMarks: Number(parseFloat(stats.avg_marks || 0).toFixed(2)) || 0
                 }
             }
         });
@@ -232,7 +247,7 @@ router.get('/analytics', verifyToken, async (req, res) => {
             success: true,
             data: {
                 totalMarks: parseInt(stats.total_marks) || 0,
-                accuracyPercent: parseFloat(stats.avg_marks).toFixed(2) || 0,
+                accuracyPercent: Number(parseFloat(stats.avg_marks || 0).toFixed(2)) || 0,
                 tasksCompleted: parseInt(stats.tasks_completed) || 0,
                 markTrend: markTrendResult.rows.reverse(),
                 subjectDistribution: subjectDistResult.rows,
@@ -247,60 +262,48 @@ router.get('/analytics', verifyToken, async (req, res) => {
 
 router.get("/tasks", verifyToken, async (req, res) => {
   try {
-    const studentId = req.user.id;
+    const { userId } = req.user;
+    const studentResult = await pool.query('SELECT id FROM lms.students WHERE user_id = $1', [userId]);
+    if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
+    const studentId = studentResult.rows[0].id;
 
-    // Get all subjects the student is enrolled in
-    const subjects = await Subject.findAll({
-      include: [
-        {
-          model: User,
-          as: "students",
-          where: { id: studentId },
-          attributes: [],
-          through: { attributes: [] }
-        },
-        {
-          model: Task,
-          as: "tasks",
-          include: [
-            {
-              model: Question,
-              as: "questions",
-              attributes: ["id"]
-            }
-          ]
-        }
-      ]
-    });
+    // Get all tasks for subjects the student is enrolled in
+    const tasksResult = await pool.query(
+      `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, t.time_limit, t.status,
+       sub.id as subject_id, sub.name as subject_name, sub.code as subject_code,
+       (SELECT COUNT(*) FROM lms.questions WHERE task_id = t.id) as question_count,
+       CASE WHEN s.id IS NOT NULL THEN true ELSE false END as is_submitted
+       FROM lms.tasks t
+       JOIN lms.courses c ON t.course_id = c.id
+       JOIN lms.subjects sub ON c.subject_id = sub.id
+       JOIN lms.enrollments e ON c.id = e.course_id
+       LEFT JOIN lms.submissions s ON t.id = s.task_id AND s.student_id = $1
+       WHERE e.student_id = $1 AND t.status = 'published'
+       ORDER BY t.deadline DESC`,
+      [studentId]
+    );
 
-    // Extract all tasks with subject info
-    const allTasks = [];
-    subjects.forEach(subject => {
-      if (subject.tasks) {
-        subject.tasks.forEach(task => {
-          allTasks.push({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            difficulty: task.difficulty,
-            deadline: task.deadline,
-            timeLimit: task.timeLimit,
-            status: task.status,
-            questionCount: task.questions ? task.questions.length : 0,
-            subject: {
-              id: subject.id,
-              name: subject.name,
-              code: subject.code
-            }
-          });
-        });
+    const tasks = tasksResult.rows.map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      difficulty: task.difficulty,
+      deadline: task.deadline,
+      timeLimit: task.time_limit,
+      status: task.status,
+      questionCount: parseInt(task.question_count) || 0,
+      isSubmitted: task.is_submitted,
+      subject: {
+        id: task.subject_id,
+        name: task.subject_name,
+        code: task.subject_code
       }
-    });
+    }));
 
-    res.json({ tasks: allTasks });
+    res.json({ success: true, tasks });
   } catch (error) {
-    console.error("Error fetching tasks:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error fetching tasks:", error);
+    res.status(500).json({ error: "Failed to load tasks" });
   }
 });
 

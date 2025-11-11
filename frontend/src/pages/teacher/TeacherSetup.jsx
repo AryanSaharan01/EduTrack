@@ -33,18 +33,48 @@ export default function TeacherSetup() {
     setStep(2);
   };
 
-  const handleSubmit = async () => {
+  const handleCompleteSetup = async () => {
     setLoading(true);
     try {
-      // Submit subjects to backend
-      for (const subject of subjects) {
-        await api.post("/teacher/subjects", subject);
+      // Filter out empty subjects and normalize data
+      const payload = {
+        subjects: subjects
+          .map(s => ({ 
+            name: s.name?.trim(), 
+            code: s.code?.trim().toUpperCase(), 
+            description: s.description?.trim() || null
+          }))
+          .filter(s => s.name && s.code)
+      };
+
+      if (payload.subjects.length === 0) {
+        alert("Please add at least one subject with name & code.");
+        setLoading(false);
+        return;
       }
-      alert("Setup complete! Redirecting to dashboard...");
-      navigate("/teacher/dashboard");
-    } catch (error) {
-      console.error("Setup error:", error);
-      alert("Failed to complete setup. Please try again.");
+
+      const res = await api.post("/teacher/subjects", payload);
+      
+      // Log response for debugging
+      console.log("Teacher Setup response:", res.data);
+
+      // Check if any subjects already existed
+      const existingSubjects = res.data.created?.filter(item => item.note === 'Subject code already exists');
+      const newSubjects = res.data.created?.filter(item => !item.note);
+
+      if (existingSubjects && existingSubjects.length > 0) {
+        const existingCodes = existingSubjects.map(s => s.code).join(', ');
+        alert(`Note: Subject codes ${existingCodes} already exist. Other subjects were created successfully.`);
+      } else {
+        alert(`Successfully created ${newSubjects?.length || 0} subject(s)!`);
+      }
+
+      // Redirect to Subject Management page
+      navigate("/teacher/subjects");
+    } catch (err) {
+      console.error("Failed to create subjects:", err);
+      const errorMessage = err.response?.data?.error || "Failed to save subjects. Please try again.";
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -298,7 +328,7 @@ export default function TeacherSetup() {
                 Back
               </button>
               <button 
-                onClick={handleSubmit}
+                onClick={handleCompleteSetup}
                 disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold px-6 py-4 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >

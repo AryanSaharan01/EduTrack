@@ -100,8 +100,8 @@ export default function StudentTaskDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-slate-50 w-full">
+      <div className="px-8 py-8 space-y-6 max-w-4xl mx-auto">
         
         {/* Back Button */}
         <button

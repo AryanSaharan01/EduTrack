@@ -67,8 +67,8 @@ export default function StudentProfile() {
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
+    <div className="min-h-screen bg-slate-50 w-full">
+      <div className="px-8 py-6 space-y-6 max-w-5xl mx-auto">
         
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow">

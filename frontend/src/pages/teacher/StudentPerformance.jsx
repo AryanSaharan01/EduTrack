@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api.js";
+import AppLink from "../../components/AppLink.jsx";
 import { 
   BarChart, 
   Bar, 
@@ -21,10 +22,12 @@ export default function StudentPerformance() {
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [performanceData, setPerformanceData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [studentsLoading, setStudentsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Fetch students on mount
   useEffect(() => {
+    setStudentsLoading(true);
     api.get("/teacher/students")
       .then(res => {
         setStudents(res.data.students || []);
@@ -34,16 +37,11 @@ export default function StudentPerformance() {
         }
       })
       .catch(err => {
-        console.error(err);
-        // Load mock students for demo
-        const mockStudents = [
-          { id: "1", name: "Alice Johnson" },
-          { id: "2", name: "Bob Smith" },
-          { id: "3", name: "Charlie Brown" },
-          { id: "4", name: "Diana Prince" }
-        ];
-        setStudents(mockStudents);
-        setSelectedStudentId(mockStudents[0].id);
+        console.error("Failed to load students:", err);
+        setStudents([]);
+      })
+      .finally(() => {
+        setStudentsLoading(false);
       });
   }, []);
 
@@ -53,58 +51,82 @@ export default function StudentPerformance() {
     
     setLoading(true);
     setError(null);
+    setPerformanceData(null);
     
     api.get(`/performance/student/${selectedStudentId}`)
       .then(res => setPerformanceData(res.data.data))
       .catch(err => {
-        console.error(err);
-        // Load mock performance data for demo
-        setPerformanceData({
-          average_marks: 78.5,
-          average_accuracy: 85.3,
-          completed_tasks: 12,
-          total_tasks: 15,
-          tasks: [
-            { taskName: "Task 1", marks: 85, maxMarks: 100 },
-            { taskName: "Task 2", marks: 72, maxMarks: 100 },
-            { taskName: "Task 3", marks: 90, maxMarks: 100 },
-            { taskName: "Task 4", marks: 68, maxMarks: 100 },
-            { taskName: "Task 5", marks: 88, maxMarks: 100 }
-          ],
-          trend: [
-            { date: "Week 1", marks: 65 },
-            { date: "Week 2", marks: 72 },
-            { date: "Week 3", marks: 75 },
-            { date: "Week 4", marks: 78.5 }
-          ],
-          strengths: ["Algorithm Design", "Data Structures"],
-          weaknesses: ["Time Management", "Code Optimization"],
-          recentSubmissions: [
-            { task: "Sorting Algorithm", marks: 88, submitted: "2 days ago" },
-            { task: "Binary Search Tree", marks: 75, submitted: "5 days ago" },
-            { task: "Graph Traversal", marks: 92, submitted: "1 week ago" }
-          ]
-        });
+        console.error("Failed to load performance:", err);
+        setError('Failed to load performance for this student. Please try again.');
+        setPerformanceData(null);
       })
       .finally(() => setLoading(false));
   }, [selectedStudentId]);
 
-  if (error && !performanceData) {
+  // Show loading state for students
+  if (studentsLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl p-8 shadow-xl border border-red-200 max-w-md">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-4xl">⚠️</span>
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4 mx-auto"></div>
+          <p className="text-slate-600 font-semibold">Loading students...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show "no students" message if list is empty
+  if (students.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 w-full">
+        <div className="px-8 py-6 space-y-6">
+          
+          {/* Header */}
+          <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-semibold mb-3">
+                  <span className="text-xl">📊</span>
+                  <span>Performance Analysis</span>
+                </div>
+                <h1 className="text-4xl font-bold text-slate-900 mb-2">
+                  <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Student Performance
+                  </span>
+                </h1>
+                <p className="text-base text-slate-600">
+                  Detailed analytics and progress tracking
+                </p>
+              </div>
+              <div className="hidden sm:block">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-4xl">🎯</span>
+                </div>
+              </div>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Error Loading Data</h2>
-            <p className="text-red-600 font-semibold mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl hover:scale-105 transition-all"
-            >
-              Retry
-            </button>
+          </div>
+
+          {/* No Students Message */}
+          <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+            <div className="p-12 text-center">
+              <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-5xl">👥</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-3">No Students Found</h2>
+              <p className="text-slate-600 mb-6 max-w-md mx-auto">
+                Either no students are enrolled in your subjects or we could not fetch them. 
+                Visit Subject Management to enroll students.
+              </p>
+              <AppLink
+                to="/teacher/subjects"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Go to Subject Management
+              </AppLink>
+            </div>
           </div>
         </div>
       </div>
@@ -174,6 +196,9 @@ export default function StudentPerformance() {
                 <div className="w-full p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl">
                   <p className="text-sm text-slate-600 mb-1">Currently Viewing</p>
                   <p className="text-lg font-bold text-slate-900">{selectedStudent.name}</p>
+                  {selectedStudent.roll_no && (
+                    <p className="text-xs text-slate-500">Roll No: {selectedStudent.roll_no}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -184,6 +209,33 @@ export default function StudentPerformance() {
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
             <p className="text-slate-600 font-semibold">Loading performance data...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-2xl p-12 text-center shadow-md border border-red-200">
+            <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-5xl">⚠️</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Error Loading Performance</h3>
+            <p className="text-red-600 font-semibold mb-6">{error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                if (selectedStudentId) {
+                  setLoading(true);
+                  api.get(`/performance/student/${selectedStudentId}`)
+                    .then(res => setPerformanceData(res.data.data))
+                    .catch(err => {
+                      console.error("Failed to load performance:", err);
+                      setError('Failed to load performance for this student. Please try again.');
+                      setPerformanceData(null);
+                    })
+                    .finally(() => setLoading(false));
+                }
+              }}
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl hover:scale-105 transition-all"
+            >
+              Retry
+            </button>
           </div>
         ) : performanceData ? (
           <>
@@ -200,7 +252,7 @@ export default function StudentPerformance() {
                 </div>
                 <h3 className="text-sm font-semibold text-slate-600 mb-1">Average Marks</h3>
                 <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                  {performanceData.average_marks?.toFixed(1)}
+                  {performanceData.average_marks?.toFixed(1) || '0.0'}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">Out of 100</p>
               </div>
@@ -216,7 +268,7 @@ export default function StudentPerformance() {
                 </div>
                 <h3 className="text-sm font-semibold text-slate-600 mb-1">Accuracy Rate</h3>
                 <p className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  {performanceData.average_accuracy?.toFixed(1)}%
+                  {performanceData.average_accuracy?.toFixed(1) || '0.0'}%
                 </p>
                 <p className="text-xs text-slate-500 mt-1">Overall accuracy</p>
               </div>
@@ -232,7 +284,7 @@ export default function StudentPerformance() {
                 </div>
                 <h3 className="text-sm font-semibold text-slate-600 mb-1">Completed</h3>
                 <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  {performanceData.completed_tasks}
+                  {performanceData.completed_tasks || 0}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">Tasks finished</p>
               </div>
@@ -248,7 +300,7 @@ export default function StudentPerformance() {
                 </div>
                 <h3 className="text-sm font-semibold text-slate-600 mb-1">Total Tasks</h3>
                 <p className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                  {performanceData.total_tasks}
+                  {performanceData.total_tasks || 0}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">Assigned tasks</p>
               </div>
@@ -270,33 +322,39 @@ export default function StudentPerformance() {
                   </div>
                 </div>
                 <div className="p-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={performanceData.tasks || []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis 
-                        dataKey="taskName" 
-                        tick={{ fill: '#64748b', fontSize: 12 }} 
-                        stroke="#cbd5e1"
-                      />
-                      <YAxis 
-                        tick={{ fill: '#64748b', fontSize: 12 }} 
-                        stroke="#cbd5e1"
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1e293b',
-                          border: 'none',
-                          borderRadius: '0.75rem',
-                          color: 'white'
-                        }}
-                      />
-                      <Bar dataKey="marks" radius={[8, 8, 0, 0]}>
-                        {performanceData.tasks?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {performanceData.tasks && performanceData.tasks.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={performanceData.tasks}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis 
+                          dataKey="taskName" 
+                          tick={{ fill: '#64748b', fontSize: 12 }} 
+                          stroke="#cbd5e1"
+                        />
+                        <YAxis 
+                          tick={{ fill: '#64748b', fontSize: 12 }} 
+                          stroke="#cbd5e1"
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#1e293b',
+                            border: 'none',
+                            borderRadius: '0.75rem',
+                            color: 'white'
+                          }}
+                        />
+                        <Bar dataKey="marks" radius={[8, 8, 0, 0]}>
+                          {performanceData.tasks.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-slate-500">
+                      No task data available
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -314,36 +372,42 @@ export default function StudentPerformance() {
                   </div>
                 </div>
                 <div className="p-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={performanceData.trend || []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fill: '#64748b', fontSize: 12 }} 
-                        stroke="#cbd5e1"
-                      />
-                      <YAxis 
-                        tick={{ fill: '#64748b', fontSize: 12 }} 
-                        stroke="#cbd5e1"
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1e293b',
-                          border: 'none',
-                          borderRadius: '0.75rem',
-                          color: 'white'
-                        }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="marks" 
-                        stroke="#10b981" 
-                        strokeWidth={3}
-                        dot={{ fill: '#10b981', r: 6 }}
-                        activeDot={{ r: 8 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {performanceData.trend && performanceData.trend.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={performanceData.trend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fill: '#64748b', fontSize: 12 }} 
+                          stroke="#cbd5e1"
+                        />
+                        <YAxis 
+                          tick={{ fill: '#64748b', fontSize: 12 }} 
+                          stroke="#cbd5e1"
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#1e293b',
+                            border: 'none',
+                            borderRadius: '0.75rem',
+                            color: 'white'
+                          }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="marks" 
+                          stroke="#10b981" 
+                          strokeWidth={3}
+                          dot={{ fill: '#10b981', r: 6 }}
+                          activeDot={{ r: 8 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-slate-500">
+                      No trend data available
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
