@@ -20,6 +20,7 @@ import StudentPerformance from './pages/teacher/StudentPerformance';
 import ClassAnalytics from './pages/teacher/ClassAnalytics';
 import SubjectManagement from './pages/teacher/SubjectManagement';
 import TeacherProfile from './pages/teacher/TeacherProfile';
+import SubjectAssignment from './pages/teacher/SubjectAssignment';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -151,6 +152,18 @@ function App() {
                     <div className="flex">
                       <Sidebar role="teacher" />
                       <SubjectManagement />
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/subjects/assign"
+                element={
+                  <ProtectedRoute role="teacher">
+                    <Navbar />
+                    <div className="flex">
+                      <Sidebar role="teacher" />
+                      <SubjectAssignment />
                     </div>
                   </ProtectedRoute>
                 }

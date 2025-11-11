@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../../utils/api.js";
-import AppLink from "../../components/AppLink.jsx";
 
 export default function SubjectAssignment() {
   const navigate = useNavigate();
@@ -28,7 +27,7 @@ export default function SubjectAssignment() {
   
   const loadSubjects = async () => {
     try {
-      const res = await api.get("/teacher/subjects");
+      const res = await api.get("/teacher/subjects/available");
       setSubjects(res.data.subjects || []);
     } catch (err) {
       console.error("Failed to load subjects:", err);
@@ -330,12 +329,12 @@ export default function SubjectAssignment() {
             
             {/* Navigation */}
             <div className="flex gap-4 pt-4">
-              <button 
-                onClick={() => navigate("/teacher/dashboard")}
+              <Link 
+                to="/teacher/dashboard"
                 className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-700 font-semibold px-6 py-4 rounded-xl hover:bg-slate-300 transition-all"
               >
                 Cancel
-              </button>
+              </Link>
               <button 
                 onClick={handleNext}
                 disabled={!selectedSubject || !selectedCourse || !selectedSection || selectedStudents.length === 0}

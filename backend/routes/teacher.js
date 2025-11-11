@@ -123,13 +123,36 @@ router.get(
   }
 );
 
-// GET /api/teacher/subjects - Get all subjects available in the system
+// GET /api/teacher/subjects - Get ONLY subjects assigned to this teacher
 router.get("/subjects", verifyToken, authorizeTeacher, async (req, res) => {
   try {
+    const { userId } = req.user;
+
+    // Get teacher ID first
+    const teacherResult = await pool.query(
+      "SELECT id FROM lms.teachers WHERE user_id = $1",
+      [userId]
+    );
+
+    if (teacherResult.rows.length === 0) {
+      return res.status(404).json({ error: "Teacher not found" });
+    }
+
+    const teacherId = teacherResult.rows[0].id;
+
+    // Get ONLY subjects that this teacher has assigned (through teacher_subject_assignments)
     const subjects = await pool.query(
-      `SELECT id, name, code, description
-       FROM lms.subjects
-       ORDER BY name`
+      `SELECT DISTINCT s.id, s.name, s.code, s.description,
+       COUNT(DISTINCT e.student_id) as "studentCount",
+       COUNT(DISTINCT t.id) as "taskCount"
+       FROM lms.subjects s
+       JOIN lms.teacher_subject_assignments tsa ON s.id = tsa.subject_id
+       LEFT JOIN lms.enrollments e ON e.teacher_subject_assignment_id = tsa.id
+       LEFT JOIN lms.tasks t ON t.teacher_subject_assignment_id = tsa.id
+       WHERE tsa.teacher_id = $1
+       GROUP BY s.id, s.name, s.code, s.description
+       ORDER BY s.name`,
+      [teacherId]
     );
 
     res.json({
@@ -241,6 +264,25 @@ router.post('/subjects', verifyToken, authorizeTeacher, async (req, res) => {
     await pool.query('ROLLBACK').catch(() => {});
     console.error('❌ Create Subjects Error:', error);
     return res.status(500).json({ error: 'Failed to create subjects' });
+  }
+});
+
+// GET /api/teacher/subjects/available - Get all subjects available for assignment
+router.get("/subjects/available", verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const subjects = await pool.query(
+      `SELECT id, name, code, description
+       FROM lms.subjects
+       ORDER BY name`
+    );
+
+    res.json({
+      success: true,
+      subjects: subjects.rows
+    });
+  } catch (error) {
+    console.error("❌ Available Subjects Error:", error);
+    res.status(500).json({ error: "Failed to load available subjects" });
   }
 });
 
@@ -440,6 +482,25 @@ router.put("/profile", verifyToken, authorizeTeacher, async (req, res) => {
   } catch (error) {
     console.error("❌ Update Teacher Profile Error:", error);
     res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// GET /api/teacher/subjects/available - Get all subjects available for assignment
+router.get("/subjects/available", verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const subjects = await pool.query(
+      `SELECT id, name, code, description
+       FROM lms.subjects
+       ORDER BY name`
+    );
+
+    res.json({
+      success: true,
+      subjects: subjects.rows
+    });
+  } catch (error) {
+    console.error("❌ Available Subjects Error:", error);
+    res.status(500).json({ error: "Failed to load available subjects" });
   }
 });
 

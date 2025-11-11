@@ -51,3 +51,17 @@ AppLink.propTypes = {
     className: PropTypes.string,
     state: PropTypes.object
 };
+
+// In SubjectManagement.jsx, replace AppLink import and usage:
+// import { Link } from "react-router-dom";
+
+// Then replace AppLink with Link:
+<Link 
+  to="/teacher/subjects/assign" 
+  className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all whitespace-nowrap"
+>
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+  Add New Subject
+</Link>

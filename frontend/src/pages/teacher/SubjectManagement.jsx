@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/api.js";
-import AppLink from "../../components/AppLink.jsx";
+import { Link } from "react-router-dom";
 
 export default function SubjectManagement() {
   const [subjects, setSubjects] = useState([]);
@@ -101,7 +101,7 @@ export default function SubjectManagement() {
               className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
             />
           </div>
-          <AppLink 
+          <Link 
             to="/teacher/subjects/assign" 
             className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all whitespace-nowrap"
           >
@@ -109,7 +109,7 @@ export default function SubjectManagement() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Add New Subject
-          </AppLink>
+          </Link>
         </div>
 
         {/* Stats Cards */}
@@ -167,7 +167,7 @@ export default function SubjectManagement() {
               }
             </p>
             {!searchQuery && (
-              <AppLink 
+              <Link 
                 to="/teacher/subjects/assign"
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
               >
@@ -175,7 +175,7 @@ export default function SubjectManagement() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Create First Subject
-              </AppLink>
+              </Link>
             )}
           </div>
         ) : (
@@ -254,7 +254,7 @@ export default function SubjectManagement() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-2">
-                      <AppLink 
+                      <Link 
                         to={`/teacher/subjects/${subject.id}`} 
                         className={`flex-1 text-center bg-gradient-to-r ${color.gradient} text-white font-semibold px-4 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2`}
                       >
@@ -263,7 +263,7 @@ export default function SubjectManagement() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                         View Details
-                      </AppLink>
+                      </Link>
                       
                       <button 
                         className="bg-slate-100 text-slate-700 font-semibold px-4 py-3 rounded-xl hover:bg-slate-200 transition-all"
