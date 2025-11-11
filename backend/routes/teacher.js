@@ -68,32 +68,33 @@ router.get(
 
       const teacher = teacherResult.rows[0];
 
-      // Get subjects taught by teacher
+      // Get subjects taught by teacher with course/section details
       const subjectsResult = await pool.query(
-        `SELECT id, name, code, description
-         FROM lms.subjects
-         WHERE teacher_id = $1
-         ORDER BY name`,
+        `SELECT DISTINCT s.id, s.name, s.code, s.description,
+         COUNT(DISTINCT tsa.id) as assignment_count
+         FROM lms.subjects s
+         LEFT JOIN lms.teacher_subject_assignments tsa ON s.id = tsa.subject_id AND tsa.teacher_id = $1
+         WHERE tsa.teacher_id = $1
+         GROUP BY s.id, s.name, s.code, s.description
+         ORDER BY s.name`,
         [teacher.id]
       );
 
-      // Get total students
+      // Get total students enrolled under this teacher
       const studentsResult = await pool.query(
         `SELECT COUNT(DISTINCT e.student_id) as total
          FROM lms.enrollments e
-         JOIN lms.courses c ON e.course_id = c.id
-         JOIN lms.subjects s ON c.subject_id = s.id
-         WHERE s.teacher_id = $1`,
+         JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
+         WHERE tsa.teacher_id = $1`,
         [teacher.id]
       );
 
-      // Get total tasks
+      // Get total tasks created by teacher
       const tasksResult = await pool.query(
         `SELECT COUNT(t.id) as total
          FROM lms.tasks t
-         JOIN lms.courses c ON t.course_id = c.id
-         JOIN lms.subjects s ON c.subject_id = s.id
-         WHERE s.teacher_id = $1`,
+         JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+         WHERE tsa.teacher_id = $1`,
         [teacher.id]
       );
 
@@ -122,8 +123,27 @@ router.get(
   }
 );
 
-// GET /api/teacher/subjects
+// GET /api/teacher/subjects - Get all subjects available in the system
 router.get("/subjects", verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const subjects = await pool.query(
+      `SELECT id, name, code, description
+       FROM lms.subjects
+       ORDER BY name`
+    );
+
+    res.json({
+      success: true,
+      subjects: subjects.rows
+    });
+  } catch (error) {
+    console.error("❌ Teacher Subjects Error:", error);
+    res.status(500).json({ error: "Failed to load subjects" });
+  }
+});
+
+// GET /api/teacher/my-subjects - Get subjects assigned to this teacher
+router.get("/my-subjects", verifyToken, authorizeTeacher, async (req, res) => {
   try {
     const { userId } = req.user;
 
@@ -139,10 +159,22 @@ router.get("/subjects", verifyToken, authorizeTeacher, async (req, res) => {
     const teacherId = teacherResult.rows[0].id;
 
     const subjects = await pool.query(
-      `SELECT id, name, code, description
-       FROM lms.subjects
-       WHERE teacher_id = $1
-       ORDER BY name`,
+      `SELECT DISTINCT s.id, s.name, s.code, s.description,
+       json_agg(json_build_object(
+         'assignment_id', tsa.id,
+         'course_id', c.id,
+         'course_name', c.name,
+         'course_code', c.code,
+         'section_id', sec.id,
+         'section_name', sec.name
+       )) as assignments
+       FROM lms.subjects s
+       JOIN lms.teacher_subject_assignments tsa ON s.id = tsa.subject_id
+       JOIN lms.courses c ON tsa.course_id = c.id
+       JOIN lms.sections sec ON tsa.section_id = sec.id
+       WHERE tsa.teacher_id = $1
+       GROUP BY s.id, s.name, s.code, s.description
+       ORDER BY s.name`,
       [teacherId]
     );
 
@@ -151,25 +183,14 @@ router.get("/subjects", verifyToken, authorizeTeacher, async (req, res) => {
       subjects: subjects.rows
     });
   } catch (error) {
-    console.error("❌ Teacher Subjects Error:", error);
-    res.status(500).json({ error: "Failed to load subjects" });
+    console.error("❌ My Subjects Error:", error);
+    res.status(500).json({ error: "Failed to load your subjects" });
   }
 });
 
-// POST /api/teacher/subjects
-// Accepts either { subjects: [{name, code, description}, ...] } OR a single subject object
+// POST /api/teacher/subjects - Create subjects in master list (not assign)
 router.post('/subjects', verifyToken, authorizeTeacher, async (req, res) => {
   try {
-    const { userId } = req.user;
-    
-    // Find teacher id
-    const teacherResult = await pool.query('SELECT id FROM lms.teachers WHERE user_id = $1', [userId]);
-    if (teacherResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Teacher profile not found' });
-    }
-    const teacherId = teacherResult.rows[0].id;
-
-    // Accept either array or single subject
     const incoming = req.body.subjects || (req.body.name ? [req.body] : []);
     if (!Array.isArray(incoming) || incoming.length === 0) {
       return res.status(400).json({ error: 'No subject data provided' });
@@ -179,26 +200,22 @@ router.post('/subjects', verifyToken, authorizeTeacher, async (req, res) => {
     await pool.query('BEGIN');
     
     for (const subject of incoming) {
-      // Normalize data
       const name = (subject.name || '').trim();
       const code = (subject.code || '').trim().toUpperCase();
       const description = subject.description || null;
       
       if (!name || !code) continue;
 
-      // Try insert - code has UNIQUE constraint in schema
       try {
         const insertResult = await pool.query(
-          `INSERT INTO lms.subjects (teacher_id, name, code, description, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, NOW(), NOW()) 
+          `INSERT INTO lms.subjects (name, code, description, created_at, updated_at)
+           VALUES ($1, $2, $3, NOW(), NOW()) 
            RETURNING *`,
-          [teacherId, name, code, description]
+          [name, code, description]
         );
         created.push(insertResult.rows[0]);
       } catch (err) {
-        // Handle unique violation gracefully
         if (err.code === '23505') {
-          // Unique violation - subject code already exists
           const existing = await pool.query(
             'SELECT * FROM lms.subjects WHERE code = $1', 
             [code]
@@ -209,7 +226,6 @@ router.post('/subjects', verifyToken, authorizeTeacher, async (req, res) => {
             existing: existing.rows[0] 
           });
         } else {
-          // Other DB error - rethrow to abort transaction
           throw err;
         }
       }
@@ -228,80 +244,84 @@ router.post('/subjects', verifyToken, authorizeTeacher, async (req, res) => {
   }
 });
 
-// GET /api/teacher/students
-// Returns distinct students enrolled in courses belonging to subjects taught by this teacher
-router.get('/students', verifyToken, authorizeTeacher, async (req, res) => {
+// GET /api/teacher/courses - Get all courses
+router.get('/courses', verifyToken, authorizeTeacher, async (req, res) => {
   try {
-    const { userId } = req.user;
-    
-    const teacherResult = await pool.query(
-      'SELECT id FROM lms.teachers WHERE user_id = $1', 
-      [userId]
+    const courses = await pool.query(
+      `SELECT id, name, code, description
+       FROM lms.courses
+       ORDER BY name`
     );
-    
-    if (teacherResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Teacher profile not found' });
-    }
-    
-    const teacherId = teacherResult.rows[0].id;
 
-    const studentsQuery = `
-      SELECT DISTINCT 
-        s.id, 
-        s.name, 
-        s.roll_no, 
-        s.email, 
-        c.id as course_id, 
-        c.name as course_name, 
-        sec.id as section_id, 
-        sec.name as section
-      FROM lms.students s
-      JOIN lms.enrollments e ON e.student_id = s.id
-      JOIN lms.courses c ON e.course_id = c.id
-      JOIN lms.sections sec ON e.section_id = sec.id
-      JOIN lms.subjects sub ON c.subject_id = sub.id
-      WHERE sub.teacher_id = $1
-      ORDER BY s.name
-    `;
-    
-    const studentsResult = await pool.query(studentsQuery, [teacherId]);
-    
-    res.json({ 
-      success: true, 
-      students: studentsResult.rows 
+    res.json({
+      success: true,
+      courses: courses.rows
     });
   } catch (error) {
-    console.error('❌ Teacher students list error:', error);
+    console.error('❌ Get Courses Error:', error);
+    res.status(500).json({ error: 'Failed to load courses' });
+  }
+});
+
+// GET /api/teacher/sections/:courseId - Get sections for a course
+router.get('/sections/:courseId', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    
+    const sections = await pool.query(
+      `SELECT id, name
+       FROM lms.sections
+       WHERE course_id = $1
+       ORDER BY name`,
+      [courseId]
+    );
+
+    res.json({
+      success: true,
+      sections: sections.rows
+    });
+  } catch (error) {
+    console.error('❌ Get Sections Error:', error);
+    res.status(500).json({ error: 'Failed to load sections' });
+  }
+});
+
+// GET /api/teacher/students/by-course-section/:courseId/:sectionId - Get students by course and section
+router.get('/students/by-course-section/:courseId/:sectionId', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { courseId, sectionId } = req.params;
+    
+    const students = await pool.query(
+      `SELECT s.id, s.name, s.roll_no, s.course, s.section, u.email
+       FROM lms.students s
+       JOIN lms.users u ON s.user_id = u.id
+       WHERE s.course = (SELECT code FROM lms.courses WHERE id = $1)
+       AND s.section = (SELECT name FROM lms.sections WHERE id = $2)
+       ORDER BY s.name`,
+      [courseId, sectionId]
+    );
+
+    res.json({
+      success: true,
+      students: students.rows
+    });
+  } catch (error) {
+    console.error('❌ Get Students Error:', error);
     res.status(500).json({ error: 'Failed to load students' });
   }
 });
 
-// POST /api/teacher/enrollments
-// Body: { course_id, section_id, student_ids: [1,2,3] }
-// Idempotent: uses ON CONFLICT DO NOTHING based on unique(student_id, course_id, section_id)
-router.post('/enrollments', verifyToken, authorizeTeacher, async (req, res) => {
+// POST /api/teacher/assign-subject - Assign subject to teacher with course-section and enroll students
+router.post('/assign-subject', verifyToken, authorizeTeacher, async (req, res) => {
   try {
     const { userId } = req.user;
-    const { course_id, section_id, student_ids } = req.body;
+    const { subject_id, course_id, section_id, student_ids } = req.body;
     
-    if (!course_id || !section_id || !Array.isArray(student_ids) || student_ids.length === 0) {
+    if (!subject_id || !course_id || !section_id || !Array.isArray(student_ids) || student_ids.length === 0) {
       return res.status(400).json({ 
         error: 'Missing required fields',
-        message: 'course_id, section_id, and student_ids array are required' 
+        message: 'subject_id, course_id, section_id, and student_ids array are required' 
       });
-    }
-
-    // Verify teacher owns the subject that the course belongs to
-    const courseCheck = await pool.query(
-      `SELECT c.id, c.subject_id, s.teacher_id
-       FROM lms.courses c
-       JOIN lms.subjects s ON c.subject_id = s.id
-       WHERE c.id = $1`,
-      [course_id]
-    );
-    
-    if (courseCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Course not found' });
     }
 
     const teacherResult = await pool.query(
@@ -314,45 +334,50 @@ router.post('/enrollments', verifyToken, authorizeTeacher, async (req, res) => {
     }
     
     const teacherId = teacherResult.rows[0].id;
-    
-    // Ensure teacher owns the subject
-    if (courseCheck.rows[0].teacher_id && courseCheck.rows[0].teacher_id !== teacherId) {
-      return res.status(403).json({ 
-        error: 'Permission denied',
-        message: 'You do not have permission to enroll students in this course' 
-      });
-    }
 
-    // Insert enrollments (ON CONFLICT prevents duplicates)
-    const enrollmentStmt = `
-      INSERT INTO lms.enrollments (student_id, course_id, section_id, enrolled_at)
-      VALUES ($1, $2, $3, NOW()) 
-      ON CONFLICT (student_id, course_id, section_id) DO NOTHING 
-      RETURNING id
-    `;
-    
     await pool.query('BEGIN');
-    const inserted = [];
-    
+
+    // Create or get teacher_subject_assignment
+    const assignmentResult = await pool.query(
+      `INSERT INTO lms.teacher_subject_assignments (teacher_id, subject_id, course_id, section_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       ON CONFLICT (teacher_id, subject_id, course_id, section_id) 
+       DO UPDATE SET updated_at = NOW()
+       RETURNING id`,
+      [teacherId, subject_id, course_id, section_id]
+    );
+
+    const assignmentId = assignmentResult.rows[0].id;
+
+    // Enroll students
+    const enrolled = [];
     for (const studentId of student_ids) {
-      const result = await pool.query(enrollmentStmt, [studentId, course_id, section_id]);
+      const result = await pool.query(
+        `INSERT INTO lms.enrollments (student_id, teacher_subject_assignment_id, enrolled_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (student_id, teacher_subject_assignment_id) DO NOTHING
+         RETURNING id`,
+        [studentId, assignmentId]
+      );
+      
       if (result.rows.length) {
-        inserted.push(result.rows[0]);
+        enrolled.push(result.rows[0]);
       }
     }
-    
+
     await pool.query('COMMIT');
     
     res.json({ 
       success: true, 
-      inserted_count: inserted.length,
+      assignment_id: assignmentId,
+      enrolled_count: enrolled.length,
       total_attempted: student_ids.length,
-      message: `Successfully enrolled ${inserted.length} student(s)`
+      message: `Successfully enrolled ${enrolled.length} student(s) in the subject`
     });
   } catch (error) {
     await pool.query('ROLLBACK').catch(() => {});
-    console.error('❌ Enrollments error:', error);
-    res.status(500).json({ error: 'Failed to enroll students' });
+    console.error('❌ Assign Subject Error:', error);
+    res.status(500).json({ error: 'Failed to assign subject and enroll students' });
   }
 });
 

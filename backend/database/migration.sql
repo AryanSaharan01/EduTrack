@@ -1,48 +1,29 @@
--- Create schema
-CREATE SCHEMA IF NOT EXISTS lms;
+-- Migration Script: Transition to new database structure
+-- Run this AFTER backing up your database!
 
--- Users table for both teachers and students
-CREATE TABLE lms.users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('teacher', 'student')),
-    otp_code VARCHAR(6),
-    otp_expires_at TIMESTAMP,
-    last_login TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+-- Step 1: Drop old foreign key constraints and indexes
+DROP INDEX IF EXISTS lms.idx_subjects_teacher_id;
+DROP INDEX IF EXISTS lms.idx_courses_subject_id;
+DROP INDEX IF EXISTS lms.idx_enrollments_course_section;
+DROP INDEX IF EXISTS lms.idx_tasks_teacher;
+DROP INDEX IF EXISTS lms.idx_tasks_course_section;
 
--- Teachers table linked to users
-CREATE TABLE lms.teachers (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER UNIQUE NOT NULL REFERENCES lms.users(id) ON DELETE CASCADE,
-    employee_id VARCHAR(50), -- Your: employee_code
-    name VARCHAR(255), -- Your: name
-    phone VARCHAR(15) DEFAULT NULL, -- EXTRA - nullable
-    department VARCHAR(100) DEFAULT 'Not Specified', -- EXTRA - default value
-    qualification VARCHAR(255) DEFAULT NULL, -- EXTRA - nullable
-    experience_years INTEGER DEFAULT 0, -- EXTRA - default 0
-    bio TEXT DEFAULT NULL, -- EXTRA - nullable
-    profile_image_url VARCHAR(255) DEFAULT NULL, -- EXTRA - nullable
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+-- Step 2: Backup existing data (optional but recommended)
+CREATE TABLE IF NOT EXISTS lms.backup_subjects AS SELECT * FROM lms.subjects;
+CREATE TABLE IF NOT EXISTS lms.backup_courses AS SELECT * FROM lms.courses;
+CREATE TABLE IF NOT EXISTS lms.backup_enrollments AS SELECT * FROM lms.enrollments;
+CREATE TABLE IF NOT EXISTS lms.backup_tasks AS SELECT * FROM lms.tasks;
 
--- Students table linked to users
-CREATE TABLE lms.students (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER UNIQUE NOT NULL REFERENCES lms.users(id) ON DELETE CASCADE,
-    roll_no VARCHAR(50), -- Your: roll_no
-    name VARCHAR(255), -- Your: name
-    course VARCHAR(100), -- Your: course
-    section VARCHAR(50), -- Your: section
-    phone VARCHAR(15) DEFAULT NULL, -- EXTRA - nullable
-    profile_image_url VARCHAR(255) DEFAULT NULL, -- EXTRA - nullable
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+-- Step 3: Drop old tables in correct order (respecting foreign keys)
+DROP TABLE IF EXISTS lms.submissions CASCADE;
+DROP TABLE IF EXISTS lms.task_questions CASCADE;
+DROP TABLE IF EXISTS lms.tasks CASCADE;
+DROP TABLE IF EXISTS lms.enrollments CASCADE;
+DROP TABLE IF EXISTS lms.sections CASCADE;
+DROP TABLE IF EXISTS lms.courses CASCADE;
+DROP TABLE IF EXISTS lms.subjects CASCADE;
 
+-- Step 4: Create new tables with updated structure
 -- Subjects (independent, master list)
 CREATE TABLE lms.subjects (
     id SERIAL PRIMARY KEY,
@@ -147,30 +128,7 @@ CREATE TABLE lms.submission_answers (
     UNIQUE(submission_id, question_id)
 );
 
--- Notifications sent to students
-CREATE TABLE lms.notifications (
-    id SERIAL PRIMARY KEY,
-    message TEXT NOT NULL,
-    sent_at TIMESTAMP DEFAULT NOW()
-);
-
--- Student notification read tracking
-CREATE TABLE lms.student_notification_read (
-    id SERIAL PRIMARY KEY,
-    notification_id INTEGER NOT NULL REFERENCES lms.notifications(id) ON DELETE CASCADE,
-    student_id INTEGER NOT NULL REFERENCES lms.students(id) ON DELETE CASCADE,
-    is_read BOOLEAN DEFAULT FALSE,
-    read_at TIMESTAMP,
-    UNIQUE(notification_id, student_id)
-);
-
--- Indexes for performance optimization
-CREATE INDEX idx_users_email ON lms.users(email);
-CREATE INDEX idx_users_role ON lms.users(role);
-CREATE INDEX idx_teachers_user_id ON lms.teachers(user_id);
-CREATE INDEX idx_teachers_employee_id ON lms.teachers(employee_id);
-CREATE INDEX idx_students_user_id ON lms.students(user_id);
-CREATE INDEX idx_students_roll_no ON lms.students(roll_no);
+-- Step 5: Create indexes for performance optimization
 CREATE INDEX idx_students_course_section ON lms.students(course, section);
 CREATE INDEX idx_sections_course_id ON lms.sections(course_id);
 CREATE INDEX idx_teacher_subject_assignments_teacher ON lms.teacher_subject_assignments(teacher_id);
@@ -184,21 +142,46 @@ CREATE INDEX idx_task_questions_task ON lms.task_questions(task_id);
 CREATE INDEX idx_submissions_task ON lms.submissions(task_id);
 CREATE INDEX idx_submissions_student ON lms.submissions(student_id);
 CREATE INDEX idx_submission_answers_submission ON lms.submission_answers(submission_id);
-CREATE INDEX idx_notification_read_student ON lms.student_notification_read(student_id);
-CREATE INDEX idx_notification_read_notification ON lms.student_notification_read(notification_id);
 
--- Comments for documentation
-COMMENT ON TABLE lms.users IS 'Stores authentication data for teachers and students';
-COMMENT ON TABLE lms.teachers IS 'Extended profile information for teachers';
-COMMENT ON TABLE lms.students IS 'Extended profile information for students';
+-- Step 6: Add comments for documentation
 COMMENT ON TABLE lms.subjects IS 'Master list of academic subjects (independent)';
 COMMENT ON TABLE lms.courses IS 'Master list of courses (independent)';
 COMMENT ON TABLE lms.sections IS 'Class sections within courses';
 COMMENT ON TABLE lms.teacher_subject_assignments IS 'Links teachers to subjects they teach for specific course-sections';
 COMMENT ON TABLE lms.enrollments IS 'Student enrollments to teacher subject assignments';
 COMMENT ON TABLE lms.tasks IS 'Coding tasks/assignments created by teachers';
-COMMENT ON TABLE lms.task_questions IS 'Individual questions within tasks';
-COMMENT ON TABLE lms.submissions IS 'Student task submissions';
-COMMENT ON TABLE lms.submission_answers IS 'Student answers for each question';
-COMMENT ON TABLE lms.notifications IS 'System notifications';
-COMMENT ON TABLE lms.student_notification_read IS 'Tracks which students have read notifications';
+
+-- Step 7: Seed with sample data (MODIFY THIS BASED ON YOUR NEEDS)
+-- Add some sample courses
+INSERT INTO lms.courses (name, code, description) VALUES
+('Computer Science', 'CS', 'Bachelor of Computer Science'),
+('Information Technology', 'IT', 'Bachelor of Information Technology'),
+('Software Engineering', 'SE', 'Bachelor of Software Engineering')
+ON CONFLICT (code) DO NOTHING;
+
+-- Add some sample sections for each course
+INSERT INTO lms.sections (course_id, name) VALUES
+((SELECT id FROM lms.courses WHERE code = 'CS'), 'A'),
+((SELECT id FROM lms.courses WHERE code = 'CS'), 'B'),
+((SELECT id FROM lms.courses WHERE code = 'CS'), 'C'),
+((SELECT id FROM lms.courses WHERE code = 'IT'), 'A'),
+((SELECT id FROM lms.courses WHERE code = 'IT'), 'B'),
+((SELECT id FROM lms.courses WHERE code = 'SE'), 'A')
+ON CONFLICT (course_id, name) DO NOTHING;
+
+-- Step 8: Verification queries
+-- Check if tables were created successfully
+SELECT 'Subjects' as table_name, COUNT(*) as count FROM lms.subjects
+UNION ALL
+SELECT 'Courses', COUNT(*) FROM lms.courses
+UNION ALL
+SELECT 'Sections', COUNT(*) FROM lms.sections
+UNION ALL
+SELECT 'Teacher Subject Assignments', COUNT(*) FROM lms.teacher_subject_assignments
+UNION ALL
+SELECT 'Enrollments', COUNT(*) FROM lms.enrollments
+UNION ALL
+SELECT 'Tasks', COUNT(*) FROM lms.tasks;
+
+-- Success message
+SELECT 'Migration completed successfully!' as status;

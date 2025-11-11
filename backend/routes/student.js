@@ -19,35 +19,47 @@ const verifyToken = (req, res, next) => {
 router.get('/dashboard', verifyToken, async (req, res) => {
     try {
         const { userId } = req.user;
+        
+        // Get student profile
         const studentResult = await pool.query(
-            `SELECT s.*, u.email FROM lms.students s JOIN lms.users u ON s.user_id = u.id WHERE s.user_id = $1`,
+            `SELECT s.*, u.email FROM lms.students s 
+             JOIN lms.users u ON s.user_id = u.id 
+             WHERE s.user_id = $1`,
             [userId]
         );
-        if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student profile not found' });
+        
+        if (studentResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Student profile not found' });
+        }
+        
         const student = studentResult.rows[0];
 
+        // Get enrolled subjects
         const subjectsResult = await pool.query(
             `SELECT DISTINCT sub.id, sub.name, sub.code, sub.description, t.name as teacher_name
              FROM lms.enrollments e
-             JOIN lms.courses c ON e.course_id = c.id
-             JOIN lms.subjects sub ON c.subject_id = sub.id
-             LEFT JOIN lms.teachers t ON sub.teacher_id = t.id
-             WHERE e.student_id = $1 ORDER BY sub.name`,
+             JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
+             JOIN lms.subjects sub ON tsa.subject_id = sub.id
+             LEFT JOIN lms.teachers t ON tsa.teacher_id = t.id
+             WHERE e.student_id = $1 
+             ORDER BY sub.name`,
             [student.id]
         );
 
+        // Get upcoming tasks
         const upcomingTasksResult = await pool.query(
             `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, sub.name as subject
              FROM lms.tasks t
-             JOIN lms.courses c ON t.course_id = c.id
-             JOIN lms.subjects sub ON c.subject_id = sub.id
-             JOIN lms.enrollments e ON c.id = e.course_id
+             JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+             JOIN lms.subjects sub ON tsa.subject_id = sub.id
+             JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
              LEFT JOIN lms.submissions s ON t.id = s.task_id AND s.student_id = $1
              WHERE e.student_id = $1 AND t.status = 'published' AND t.deadline > NOW() AND s.id IS NULL
              ORDER BY t.deadline ASC LIMIT 5`,
             [student.id]
         );
 
+        // Get notifications
         const notificationsResult = await pool.query(
             `SELECT n.id, n.message, n.sent_at as timestamp, COALESCE(snr.is_read, false) as is_read
              FROM lms.notifications n
@@ -56,23 +68,25 @@ router.get('/dashboard', verifyToken, async (req, res) => {
             [student.id]
         );
 
+        // Get stats
         const statsResult = await pool.query(
-            `SELECT COUNT(DISTINCT t.id) as total_tasks, COUNT(DISTINCT sub.id) as submitted_tasks,
-             COALESCE(AVG(sub.total_marks_obtained), 0) as avg_marks
-             FROM lms.tasks t
-             JOIN lms.courses c ON t.course_id = c.id
-             JOIN lms.enrollments e ON c.id = e.course_id
-             LEFT JOIN lms.submissions sub ON t.id = sub.task_id AND sub.student_id = $1
-             WHERE e.student_id = $1 AND t.status = 'published'`,
+            `SELECT 
+             COUNT(DISTINCT t.id) as total_tasks, 
+             COUNT(DISTINCT s.id) as submitted_tasks,
+             COALESCE(AVG(s.total_marks_obtained), 0) as avg_marks
+             FROM lms.enrollments e
+             JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
+             LEFT JOIN lms.tasks t ON tsa.id = t.teacher_subject_assignment_id AND t.status = 'published'
+             LEFT JOIN lms.submissions s ON t.id = s.task_id AND s.student_id = $1
+             WHERE e.student_id = $1`,
             [student.id]
         );
         
-        // Handle stats with default values
         const stats = statsResult.rows[0] || { total_tasks: 0, submitted_tasks: 0, avg_marks: 0 };
 
-        // Determine if student is enrolled anywhere
+        // Check if enrolled
         const enrolledCheck = await pool.query(
-            `SELECT 1 FROM lms.enrollments e WHERE e.student_id = $1 LIMIT 1`, 
+            `SELECT 1 FROM lms.enrollments WHERE student_id = $1 LIMIT 1`, 
             [student.id]
         );
         const enrolled = enrolledCheck.rows.length > 0;
@@ -103,7 +117,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Dashboard Error:', error);
-        res.status(500).json({ error: 'Failed to load dashboard data' });
+        res.status(500).json({ error: 'Failed to load dashboard data', details: error.message });
     }
 });
 
@@ -113,18 +127,22 @@ router.get('/subjects', verifyToken, async (req, res) => {
         const studentResult = await pool.query('SELECT id FROM lms.students WHERE user_id = $1', [userId]);
         if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
         const studentId = studentResult.rows[0].id;
+        
         const subjects = await pool.query(
             `SELECT DISTINCT sub.id, sub.name, sub.code, sub.description, t.name as teacher_name, t.employee_id
-             FROM lms.enrollments e JOIN lms.courses c ON e.course_id = c.id
-             JOIN lms.subjects sub ON c.subject_id = sub.id
-             LEFT JOIN lms.teachers t ON sub.teacher_id = t.id
-             WHERE e.student_id = $1 ORDER BY sub.name`,
+             FROM lms.enrollments e
+             JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
+             JOIN lms.subjects sub ON tsa.subject_id = sub.id
+             LEFT JOIN lms.teachers t ON tsa.teacher_id = t.id
+             WHERE e.student_id = $1 
+             ORDER BY sub.name`,
             [studentId]
         );
+        
         res.json({ success: true, subjects: subjects.rows });
     } catch (error) {
         console.error('❌ Subjects Error:', error);
-        res.status(500).json({ error: 'Failed to load subjects' });
+        res.status(500).json({ error: 'Failed to load subjects', details: error.message });
     }
 });
 
@@ -132,29 +150,45 @@ router.get('/subjects/:subjectId', verifyToken, async (req, res) => {
     try {
         const { userId } = req.user;
         const { subjectId } = req.params;
+        
         const studentResult = await pool.query('SELECT id FROM lms.students WHERE user_id = $1', [userId]);
         if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
         const studentId = studentResult.rows[0].id;
+        
         const subjectResult = await pool.query(
-            `SELECT sub.id, sub.name, sub.code, sub.description, t.name as teacher_name
-             FROM lms.subjects sub LEFT JOIN lms.teachers t ON sub.teacher_id = t.id WHERE sub.id = $1`,
-            [subjectId]
+            `SELECT DISTINCT sub.id, sub.name, sub.code, sub.description, t.name as teacher_name
+             FROM lms.subjects sub
+             JOIN lms.teacher_subject_assignments tsa ON sub.id = tsa.subject_id
+             JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
+             LEFT JOIN lms.teachers t ON tsa.teacher_id = t.id
+             WHERE sub.id = $1 AND e.student_id = $2`,
+            [subjectId, studentId]
         );
-        if (subjectResult.rows.length === 0) return res.status(404).json({ error: 'Subject not found' });
+        
+        if (subjectResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Subject not found or not enrolled' });
+        }
+        
         const tasksResult = await pool.query(
             `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, t.status,
              CASE WHEN sub.id IS NOT NULL THEN true ELSE false END as is_submitted
-             FROM lms.tasks t JOIN lms.courses c ON t.course_id = c.id
-             JOIN lms.enrollments e ON c.id = e.course_id
+             FROM lms.tasks t
+             JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+             JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
              LEFT JOIN lms.submissions sub ON t.id = sub.task_id AND sub.student_id = $1
-             WHERE e.student_id = $1 AND c.subject_id = $2 AND t.status = 'published'
+             WHERE e.student_id = $1 AND tsa.subject_id = $2 AND t.status = 'published'
              ORDER BY t.deadline DESC`,
             [studentId, subjectId]
         );
-        res.json({ success: true, subject: subjectResult.rows[0], tasks: tasksResult.rows });
+        
+        res.json({ 
+            success: true, 
+            subject: subjectResult.rows[0], 
+            tasks: tasksResult.rows 
+        });
     } catch (error) {
         console.error('❌ Subject Details Error:', error);
-        res.status(500).json({ error: 'Failed to load subject details' });
+        res.status(500).json({ error: 'Failed to load subject details', details: error.message });
     }
 });
 
@@ -162,14 +196,16 @@ router.get('/profile', verifyToken, async (req, res) => {
     try {
         const { userId } = req.user;
         const result = await pool.query(
-            `SELECT s.*, u.email FROM lms.students s JOIN lms.users u ON s.user_id = u.id WHERE s.user_id = $1`,
+            `SELECT s.*, u.email FROM lms.students s 
+             JOIN lms.users u ON s.user_id = u.id 
+             WHERE s.user_id = $1`,
             [userId]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
         res.json({ success: true, student: result.rows[0] });
     } catch (error) {
         console.error('❌ Profile Error:', error);
-        res.status(500).json({ error: 'Failed to load profile' });
+        res.status(500).json({ error: 'Failed to load profile', details: error.message });
     }
 });
 
@@ -178,14 +214,15 @@ router.put('/profile', verifyToken, async (req, res) => {
         const { userId } = req.user;
         const { name, phone } = req.body;
         const result = await pool.query(
-            `UPDATE lms.students SET name = $1, phone = $2, updated_at = NOW() WHERE user_id = $3 RETURNING *`,
+            `UPDATE lms.students SET name = $1, phone = $2, updated_at = NOW() 
+             WHERE user_id = $3 RETURNING *`,
             [name, phone, userId]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
         res.json({ success: true, student: result.rows[0] });
     } catch (error) {
         console.error('❌ Update Profile Error:', error);
-        res.status(500).json({ error: 'Failed to update profile' });
+        res.status(500).json({ error: 'Failed to update profile', details: error.message });
     }
 });
 
@@ -195,6 +232,7 @@ router.get('/notifications', verifyToken, async (req, res) => {
         const studentResult = await pool.query('SELECT id FROM lms.students WHERE user_id = $1', [userId]);
         if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
         const studentId = studentResult.rows[0].id;
+        
         const notifications = await pool.query(
             `SELECT n.id, n.message, n.sent_at, COALESCE(snr.is_read, false) as is_read
              FROM lms.notifications n
@@ -202,10 +240,11 @@ router.get('/notifications', verifyToken, async (req, res) => {
              ORDER BY n.sent_at DESC`,
             [studentId]
         );
+        
         res.json({ success: true, notifications: notifications.rows });
     } catch (error) {
         console.error('❌ Notifications Error:', error);
-        res.status(500).json({ error: 'Failed to load notifications' });
+        res.status(500).json({ error: 'Failed to load notifications', details: error.message });
     }
 });
 
@@ -215,34 +254,47 @@ router.get('/analytics', verifyToken, async (req, res) => {
         const studentResult = await pool.query('SELECT id FROM lms.students WHERE user_id = $1', [userId]);
         if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
         const studentId = studentResult.rows[0].id;
+        
         const statsResult = await pool.query(
-            `SELECT COUNT(sub.id) as tasks_completed, COALESCE(SUM(sub.total_marks_obtained), 0) as total_marks,
+            `SELECT COUNT(sub.id) as tasks_completed, 
+             COALESCE(SUM(sub.total_marks_obtained), 0) as total_marks,
              COALESCE(AVG(sub.total_marks_obtained), 0) as avg_marks
              FROM lms.submissions sub WHERE sub.student_id = $1`,
             [studentId]
         );
         const stats = statsResult.rows[0];
+        
         const markTrendResult = await pool.query(
             `SELECT TO_CHAR(sub.submitted_at, 'MM/DD') as date, sub.total_marks_obtained as marks
-             FROM lms.submissions sub WHERE sub.student_id = $1 ORDER BY sub.submitted_at DESC LIMIT 10`,
+             FROM lms.submissions sub WHERE sub.student_id = $1 
+             ORDER BY sub.submitted_at DESC LIMIT 10`,
             [studentId]
         );
+        
         const subjectDistResult = await pool.query(
             `SELECT s.name as subject, COUNT(sub.id) as value
-             FROM lms.submissions sub JOIN lms.tasks t ON sub.task_id = t.id
-             JOIN lms.courses c ON t.course_id = c.id JOIN lms.subjects s ON c.subject_id = s.id
-             WHERE sub.student_id = $1 GROUP BY s.name`,
+             FROM lms.submissions sub 
+             JOIN lms.tasks t ON sub.task_id = t.id
+             JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+             JOIN lms.subjects s ON tsa.subject_id = s.id
+             WHERE sub.student_id = $1 
+             GROUP BY s.name`,
             [studentId]
         );
+        
         const perfPerSubjectResult = await pool.query(
             `SELECT s.name as subject, COALESCE(AVG(sub.total_marks_obtained), 0) as marks
              FROM lms.subjects s
-             LEFT JOIN lms.courses c ON s.id = c.subject_id
-             LEFT JOIN lms.tasks t ON c.id = t.course_id
+             JOIN lms.teacher_subject_assignments tsa ON s.id = tsa.subject_id
+             JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
+             LEFT JOIN lms.tasks t ON tsa.id = t.teacher_subject_assignment_id
              LEFT JOIN lms.submissions sub ON t.id = sub.task_id AND sub.student_id = $1
-             GROUP BY s.name ORDER BY marks DESC`,
+             WHERE e.student_id = $1
+             GROUP BY s.name 
+             ORDER BY marks DESC`,
             [studentId]
         );
+        
         res.json({
             success: true,
             data: {
@@ -256,7 +308,7 @@ router.get('/analytics', verifyToken, async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Analytics Error:', error);
-        res.status(500).json({ error: 'Failed to load analytics' });
+        res.status(500).json({ error: 'Failed to load analytics', details: error.message });
     }
 });
 
@@ -267,16 +319,16 @@ router.get("/tasks", verifyToken, async (req, res) => {
     if (studentResult.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
     const studentId = studentResult.rows[0].id;
 
-    // Get all tasks for subjects the student is enrolled in
     const tasksResult = await pool.query(
-      `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, t.time_limit, t.status,
+      `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, 
+       t.time_limit_minutes as time_limit, t.status,
        sub.id as subject_id, sub.name as subject_name, sub.code as subject_code,
-       (SELECT COUNT(*) FROM lms.questions WHERE task_id = t.id) as question_count,
+       (SELECT COUNT(*) FROM lms.task_questions WHERE task_id = t.id) as question_count,
        CASE WHEN s.id IS NOT NULL THEN true ELSE false END as is_submitted
        FROM lms.tasks t
-       JOIN lms.courses c ON t.course_id = c.id
-       JOIN lms.subjects sub ON c.subject_id = sub.id
-       JOIN lms.enrollments e ON c.id = e.course_id
+       JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+       JOIN lms.subjects sub ON tsa.subject_id = sub.id
+       JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
        LEFT JOIN lms.submissions s ON t.id = s.task_id AND s.student_id = $1
        WHERE e.student_id = $1 AND t.status = 'published'
        ORDER BY t.deadline DESC`,
@@ -303,7 +355,7 @@ router.get("/tasks", verifyToken, async (req, res) => {
     res.json({ success: true, tasks });
   } catch (error) {
     console.error("❌ Error fetching tasks:", error);
-    res.status(500).json({ error: "Failed to load tasks" });
+    res.status(500).json({ error: "Failed to load tasks", details: error.message });
   }
 });
 

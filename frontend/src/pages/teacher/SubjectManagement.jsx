@@ -102,7 +102,7 @@ export default function SubjectManagement() {
             />
           </div>
           <AppLink 
-            to="/teacher/setup" 
+            to="/teacher/subjects/assign" 
             className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all whitespace-nowrap"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,7 +168,7 @@ export default function SubjectManagement() {
             </p>
             {!searchQuery && (
               <AppLink 
-                to="/teacher/setup"
+                to="/teacher/subjects/assign"
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
