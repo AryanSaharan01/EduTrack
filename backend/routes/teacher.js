@@ -333,15 +333,41 @@ router.get('/students/by-course-section/:courseId/:sectionId', verifyToken, auth
   try {
     const { courseId, sectionId } = req.params;
     
+    // Get course and section data
+    const courseResult = await pool.query('SELECT code, name FROM lms.courses WHERE id = $1', [courseId]);
+    const sectionResult = await pool.query('SELECT name FROM lms.sections WHERE id = $1', [sectionId]);
+    
+    if (courseResult.rows.length === 0 || sectionResult.rows.length === 0) {
+      console.log('Course or section not found:', { courseId, sectionId });
+      return res.json({
+        success: true,
+        students: []
+      });
+    }
+    
+    const courseCode = courseResult.rows[0].code;
+    const courseName = courseResult.rows[0].name;
+    const sectionName = sectionResult.rows[0].name;
+    
+    console.log('Searching for students with:', { courseCode, courseName, sectionName });
+    
+    // Extract just the letter from section name (remove "Section " prefix if present)
+    const sectionLetter = sectionName.replace(/^Section\s*/i, '').trim();
+    
+    console.log('Extracted section letter:', sectionLetter);
+    
+    // Search using course name (not code) and section letter
     const students = await pool.query(
       `SELECT s.id, s.name, s.roll_no, s.course, s.section, u.email
        FROM lms.students s
        JOIN lms.users u ON s.user_id = u.id
-       WHERE s.course = (SELECT code FROM lms.courses WHERE id = $1)
-       AND s.section = (SELECT name FROM lms.sections WHERE id = $2)
+       WHERE UPPER(s.course) = UPPER($1) 
+       AND UPPER(s.section) = UPPER($2)
        ORDER BY s.name`,
-      [courseId, sectionId]
+      [courseName, sectionLetter]
     );
+
+    console.log(`Found ${students.rows.length} students for course: ${courseName}, section: ${sectionLetter}`);
 
     res.json({
       success: true,
