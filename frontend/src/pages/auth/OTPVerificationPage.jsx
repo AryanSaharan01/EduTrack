@@ -10,7 +10,7 @@ export default function OTPVerificationPage() {
   const { email, role } = location.state || {};
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState(null);
-  const [timer, setTimer] = useState(60);
+  const [timer, setTimer] = useState(120); // 120 seconds = 2 minutes
   const inputsRef = useRef([]);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function OTPVerificationPage() {
 
   const handleResend = () => {
     if (timer === 0) {
-      setTimer(60);
+      setTimer(120); // Reset to 2 minutes
       navigate("/auth/login", { replace: true, state: { role } });
     }
   };

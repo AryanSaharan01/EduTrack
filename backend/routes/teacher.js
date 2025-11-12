@@ -182,15 +182,21 @@ router.get("/my-subjects", verifyToken, authorizeTeacher, async (req, res) => {
     const teacherId = teacherResult.rows[0].id;
 
     const subjects = await pool.query(
-      `SELECT DISTINCT s.id, s.name, s.code, s.description,
-       json_agg(json_build_object(
-         'assignment_id', tsa.id,
-         'course_id', c.id,
-         'course_name', c.name,
-         'course_code', c.code,
-         'section_id', sec.id,
-         'section_name', sec.name
-       )) as assignments
+      `SELECT 
+         s.id, 
+         s.name, 
+         s.code, 
+         s.description,
+         json_agg(
+           json_build_object(
+             'assignment_id', tsa.id,
+             'course_id', c.id,
+             'course_name', c.name,
+             'course_code', c.code,
+             'section_id', sec.id,
+             'section_name', sec.name
+           ) ORDER BY c.name, sec.name
+         ) as assignments
        FROM lms.subjects s
        JOIN lms.teacher_subject_assignments tsa ON s.id = tsa.subject_id
        JOIN lms.courses c ON tsa.course_id = c.id
@@ -508,6 +514,50 @@ router.put("/profile", verifyToken, authorizeTeacher, async (req, res) => {
   } catch (error) {
     console.error("❌ Update Teacher Profile Error:", error);
     res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// POST /api/teacher/tasks/create - Create a new task
+router.post('/tasks/create', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { teacher_subject_assignment_id, title, description, difficulty, time_limit_minutes, deadline, questions } = req.body;
+    
+    if (!teacher_subject_assignment_id || !title || !questions || questions.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await pool.query('BEGIN');
+
+    // Create task
+    const taskResult = await pool.query(
+      `INSERT INTO lms.tasks (teacher_subject_assignment_id, title, description, difficulty, time_limit_minutes, deadline, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'published', NOW(), NOW())
+       RETURNING id`,
+      [teacher_subject_assignment_id, title, description || null, difficulty || 'medium', time_limit_minutes || 60, deadline || null]
+    );
+
+    const taskId = taskResult.rows[0].id;
+
+    // Insert questions
+    for (const question of questions) {
+      await pool.query(
+        `INSERT INTO lms.task_questions (task_id, question_number, question_text, programming_language, expected_output, marks, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+        [taskId, question.question_number, question.question_text, question.programming_language || 'python', question.expected_output, question.marks || 10]
+      );
+    }
+
+    await pool.query('COMMIT');
+
+    res.json({
+      success: true,
+      task_id: taskId,
+      message: 'Task created successfully'
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK').catch(() => {});
+    console.error('❌ Create Task Error:', error);
+    res.status(500).json({ error: 'Failed to create task' });
   }
 });
 

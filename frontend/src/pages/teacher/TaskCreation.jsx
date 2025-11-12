@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api.js";
-import { Link } from "react-router-dom";
+import AppLink from "../../components/AppLink.jsx";
 import { PROGRAMMING_LANGUAGES, DIFFICULTY } from "../../utils/constants.js";
 
 export default function TaskCreation() {
@@ -15,28 +15,26 @@ export default function TaskCreation() {
     const [questions, setQuestions] = useState([
         { text: "", language: "python", expectedOutput: "", marks: 25 }
     ]);
-    const [mySubjects, setMySubjects] = useState([]);
-    const [assignments, setAssignments] = useState([]);
+    const [subjects, setSubjects] = useState([]);
     const [courses, setCourses] = useState([]);
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Load teacher's assigned subjects
+    // Load teacher's assigned subjects with their course-section combinations
     useEffect(() => {
         api.get("/teacher/my-subjects")
             .then(res => {
-                setMySubjects(res.data.subjects || []);
+                setSubjects(res.data.subjects || []);
             })
             .catch(err => {
                 console.error("Failed to load subjects:", err);
-                setMySubjects([]);
+                setSubjects([]);
             });
     }, []);
 
-    // When subject is selected, get all course-section combinations for that subject
+    // When subject is selected, extract courses from assignments
     useEffect(() => {
         if (!subjectId) {
-            setAssignments([]);
             setCourses([]);
             setSections([]);
             setCourseId("");
@@ -44,11 +42,9 @@ export default function TaskCreation() {
             return;
         }
 
-        const selectedSubject = mySubjects.find(s => s.id === parseInt(subjectId));
+        const selectedSubject = subjects.find(s => s.id === parseInt(subjectId));
         if (selectedSubject && selectedSubject.assignments) {
-            setAssignments(selectedSubject.assignments);
-            
-            // Extract unique courses from assignments
+            // Extract unique courses
             const uniqueCourses = [];
             const courseIds = new Set();
             selectedSubject.assignments.forEach(assignment => {
@@ -62,17 +58,14 @@ export default function TaskCreation() {
                 }
             });
             setCourses(uniqueCourses);
-        } else {
-            setAssignments([]);
-            setCourses([]);
         }
-        
+
         setSections([]);
         setCourseId("");
         setSectionId("");
-    }, [subjectId, mySubjects]);
+    }, [subjectId, subjects]);
 
-    // When course is selected, get sections for that course-subject combination
+    // When course is selected, extract sections for that subject-course combination
     useEffect(() => {
         if (!courseId || !subjectId) {
             setSections([]);
@@ -80,26 +73,21 @@ export default function TaskCreation() {
             return;
         }
 
-        // Filter assignments to get sections for selected subject-course combination
-        const relevantAssignments = assignments.filter(
-            a => a.course_id === parseInt(courseId)
-        );
-        
-        const uniqueSections = [];
-        const sectionIds = new Set();
-        relevantAssignments.forEach(assignment => {
-            if (!sectionIds.has(assignment.section_id)) {
-                sectionIds.add(assignment.section_id);
-                uniqueSections.push({
-                    id: assignment.section_id,
-                    name: assignment.section_name,
-                    assignment_id: assignment.assignment_id
-                });
-            }
-        });
-        setSections(uniqueSections);
+        const selectedSubject = subjects.find(s => s.id === parseInt(subjectId));
+        if (selectedSubject && selectedSubject.assignments) {
+            // Filter sections for the selected course
+            const relevantSections = selectedSubject.assignments
+                .filter(a => a.course_id === parseInt(courseId))
+                .map(a => ({
+                    id: a.section_id,
+                    name: a.section_name,
+                    assignment_id: a.assignment_id
+                }));
+            setSections(relevantSections);
+        }
+
         setSectionId("");
-    }, [courseId, subjectId, assignments]);
+    }, [courseId, subjectId, subjects]);
 
     const addQuestion = () => setQuestions([
         ...questions,
@@ -132,7 +120,8 @@ export default function TaskCreation() {
         }
 
         // Find the assignment_id for the selected combination
-        const selectedAssignment = assignments.find(
+        const selectedSubject = subjects.find(s => s.id === parseInt(subjectId));
+        const selectedAssignment = selectedSubject?.assignments?.find(
             a => a.course_id === parseInt(courseId) && a.section_id === parseInt(sectionId)
         );
 
@@ -150,10 +139,15 @@ export default function TaskCreation() {
                 difficulty,
                 time_limit_minutes: timeLimit,
                 deadline: deadline || null,
-                questions
+                questions: questions.map((q, index) => ({
+                    question_number: index + 1,
+                    question_text: q.text,
+                    programming_language: q.language,
+                    expected_output: q.expectedOutput,
+                    marks: q.marks
+                }))
             });
             alert("Task created successfully!");
-            // Reset form or navigate to tasks page
             window.location.href = "/teacher/dashboard";
         } catch (error) {
             console.error(error);
@@ -195,89 +189,7 @@ export default function TaskCreation() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     
-                    {/* Assignment Target - NOW FIRST */}
-                    <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-                        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                                    <span className="text-xl">🎯</span>
-                                </div>
-                                <h2 className="text-xl font-bold text-slate-900">Assignment Target</h2>
-                            </div>
-                        </div>
-                        
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                                <div>
-                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                        </svg>
-                                        Subject *
-                                    </label>
-                                    <select 
-                                        value={subjectId} 
-                                        onChange={e => setSubjectId(e.target.value)} 
-                                        required 
-                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
-                                    >
-                                        <option value="">Select subject</option>
-                                        {mySubjects.map(s => (
-                                            <option key={s.id} value={s.id}>
-                                                {s.name} ({s.code})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                        </svg>
-                                        Course *
-                                    </label>
-                                    <select 
-                                        value={courseId} 
-                                        onChange={e => setCourseId(e.target.value)} 
-                                        required 
-                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
-                                        disabled={!subjectId}
-                                    >
-                                        <option value="">Select course</option>
-                                        {courses.map(c => (
-                                            <option key={c.id} value={c.id}>
-                                                {c.name} ({c.code})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                        </svg>
-                                        Section *
-                                    </label>
-                                    <select 
-                                        value={sectionId} 
-                                        onChange={e => setSectionId(e.target.value)} 
-                                        required 
-                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
-                                        disabled={!courseId}
-                                    >
-                                        <option value="">Select section</option>
-                                        {sections.map(s => (
-                                            <option key={s.id} value={s.id}>
-                                                {s.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Basic Information - NOW SECOND */}
+                    {/* Basic Information */}
                     <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
                         <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
                             <div className="flex items-center gap-3">
@@ -378,7 +290,85 @@ export default function TaskCreation() {
                         </div>
                     </div>
 
-                    {/* Questions Section - REMAINS SAME */}
+                    {/* Assignment Target */}
+                    <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                                    <span className="text-xl">🎯</span>
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-900">Assignment Target</h2>
+                            </div>
+                        </div>
+                        
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                                <div>
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                        </svg>
+                                        Subject *
+                                    </label>
+                                    <select 
+                                        value={subjectId} 
+                                        onChange={e => setSubjectId(e.target.value)} 
+                                        required 
+                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
+                                    >
+                                        <option value="">Select subject</option>
+                                        {subjects.map(s => (
+    <option key={s.id} value={s.id}>
+        {s.name} ({s.code})
+    </option>
+))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                        Course *
+                                    </label>
+                                    <select 
+                                        value={courseId} 
+                                        onChange={e => setCourseId(e.target.value)} 
+                                        required 
+                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
+                                        disabled={!subjectId}
+                                    >
+                                        <option value="">Select course</option>
+                                        {courses.map(c => (
+    <option key={c.id} value={c.id}>
+        {c.name} ({c.code})
+    </option>
+))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        Section *
+                                    </label>
+                                    <select 
+                                        value={sectionId} 
+                                        onChange={e => setSectionId(e.target.value)} 
+                                        required 
+                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
+                                        disabled={!courseId}
+                                    >
+                                        <option value="">Select section</option>
+                                        {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Questions Section */}
                     <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
                         <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
                             <div className="flex items-center justify-between">
@@ -498,7 +488,7 @@ export default function TaskCreation() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-4 justify-end">
-                        <Link
+                        <AppLink
                             to="/teacher/dashboard"
                             className="flex items-center gap-2 bg-slate-200 text-slate-700 font-semibold px-8 py-4 rounded-xl hover:bg-slate-300 transition-all"
                         >
@@ -506,7 +496,7 @@ export default function TaskCreation() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                             Cancel
-                        </Link>
+                        </AppLink>
                         <button
                             type="submit"
                             disabled={loading}

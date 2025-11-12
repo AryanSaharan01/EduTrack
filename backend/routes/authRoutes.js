@@ -1,19 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
-
-// Configure nodemailer
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
+const { sendOTPEmail } = require('../services/emailService');
 
 // Generate 6-digit OTP
 function generateOTP() {
@@ -42,7 +31,7 @@ router.post('/send-otp', async (req, res) => {
 
         // Generate OTP
         const otp = generateOTP();
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        const otpExpires = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
 
         console.log('Generated OTP:', otp, 'for', email);
 
@@ -72,25 +61,8 @@ router.post('/send-otp', async (req, res) => {
             console.log('✅ Created new user:', userId);
         }
 
-        // Send OTP via email
-        const mailOptions = {
-            from: process.env.SMTP_USER,
-            to: email,
-            subject: 'Your OTP Code - EduTrack Pro',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #0d9488;">EduTrack Pro - OTP Verification</h2>
-                    <p>Your One-Time Password (OTP) is:</p>
-                    <h1 style="color: #0d9488; font-size: 32px; letter-spacing: 5px;">${otp}</h1>
-                    <p>This OTP will expire in 10 minutes.</p>
-                    <p>If you didn't request this, please ignore this email.</p>
-                    <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
-                    <p style="color: #6b7280; font-size: 12px;">EduTrack Pro - Learning Management System</p>
-                </div>
-            `,
-        };
-
-        await transporter.sendMail(mailOptions);
+        // Send OTP via email using the email service
+        await sendOTPEmail(email, otp);
         console.log('✅ OTP email sent to:', email);
 
         res.json({ 
