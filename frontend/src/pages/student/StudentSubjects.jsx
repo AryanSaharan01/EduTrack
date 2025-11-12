@@ -116,7 +116,7 @@ export default function StudentSubjects() {
               </div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">Completion Rate</p>
-                <p className="text-2xl font-bold text-slate-900">85%</p>
+                <p className="text-2xl font-bold text-slate-900">25%</p>
               </div>
             </div>
           </div>

@@ -170,7 +170,7 @@ router.get('/subjects/:subjectId', verifyToken, async (req, res) => {
         }
         
         const tasksResult = await pool.query(
-            `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, t.status,
+            `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, t.status, t.time_limit_minutes,
              CASE WHEN sub.id IS NOT NULL THEN true ELSE false END as is_submitted
              FROM lms.tasks t
              JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
@@ -181,10 +181,28 @@ router.get('/subjects/:subjectId', verifyToken, async (req, res) => {
             [studentId, subjectId]
         );
         
+        // Fetch questions for each task
+        const tasksWithQuestions = await Promise.all(
+            tasksResult.rows.map(async (task) => {
+                const questionsResult = await pool.query(
+                    `SELECT id, question_number as "questionNumber", question_text as "questionText",
+                     programming_language as "programmingLanguage", expected_output as "expectedOutput", marks
+                     FROM lms.task_questions WHERE task_id = $1 ORDER BY question_number`,
+                    [task.id]
+                );
+                return {
+                    ...task,
+                    timeLimit: task.time_limit_minutes,
+                    questionCount: questionsResult.rows.length,
+                    questions: questionsResult.rows
+                };
+            })
+        );
+        
         res.json({ 
             success: true, 
             subject: subjectResult.rows[0], 
-            tasks: tasksResult.rows 
+            tasks: tasksWithQuestions 
         });
     } catch (error) {
         console.error('❌ Subject Details Error:', error);

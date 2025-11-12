@@ -20,22 +20,29 @@ export default function StudentTaskAttempt() {
   const [isRunning, setIsRunning] = useState(false);
   
   const timerRef = useRef(null);
-  const fullscreenRef = useRef(null);
 
   // Fetch task and questions
   useEffect(() => {
     const fetchTask = async () => {
       try {
+        console.log("Fetching task with ID:", taskId);
+        
         const subjectsRes = await api.get("/student/subjects");
+        console.log("Subjects response:", subjectsRes.data);
+        
         const subjects = subjectsRes.data.subjects || [];
         
         let foundTask = null;
         for (const subject of subjects) {
+          console.log(`Checking subject ${subject.id}...`);
           const subjectRes = await api.get(`/student/subjects/${subject.id}`);
           const tasks = subjectRes.data.tasks || [];
           
+          console.log(`Tasks in subject ${subject.id}:`, tasks);
+          
           foundTask = tasks.find(t => t.id === parseInt(taskId));
           if (foundTask) {
+            console.log("✅ Task found:", foundTask);
             foundTask.subject = { id: subject.id, name: subject.name, code: subject.code };
             break;
           }
@@ -43,19 +50,24 @@ export default function StudentTaskAttempt() {
         
         if (foundTask) {
           setTask(foundTask);
-          setQuestions(foundTask.questions || []);
+          const taskQuestions = foundTask.questions || [];
+          console.log("✅ Questions loaded:", taskQuestions);
+          setQuestions(taskQuestions);
           setTimeRemaining((foundTask.timeLimit || 45) * 60);
           
-          // Initialize answers
+          // Initialize answers with starter code
           const initialAnswers = {};
-          (foundTask.questions || []).forEach(q => {
-            initialAnswers[q.id] = q.starterCode || "# Write your code here\n";
+          taskQuestions.forEach(q => {
+            initialAnswers[q.id] = q.starterCode || `# Question ${q.questionNumber}\n# Write your code here\n\n`;
           });
           setAnswers(initialAnswers);
+          console.log("✅ Initial answers set:", initialAnswers);
+        } else {
+          console.error("❌ Task not found with ID:", taskId);
         }
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching task:", err);
+        console.error("❌ Error fetching task:", err);
         setLoading(false);
       }
     };
@@ -63,12 +75,12 @@ export default function StudentTaskAttempt() {
     fetchTask();
   }, [taskId]);
 
-  // Enter fullscreen
+  // Enter fullscreen when loaded
   useEffect(() => {
-    if (!loading && task) {
+    if (!loading && task && questions.length > 0) {
       enterFullscreen();
     }
-  }, [loading, task]);
+  }, [loading, task, questions]);
 
   // Timer countdown
   useEffect(() => {
@@ -113,23 +125,18 @@ export default function StudentTaskAttempt() {
   // Prevent right-click and keyboard shortcuts
   useEffect(() => {
     const preventActions = (e) => {
-      // Prevent right-click
       if (e.type === "contextmenu") {
         e.preventDefault();
         return false;
       }
       
-      // Prevent common shortcuts
       if (e.ctrlKey || e.metaKey) {
-        if (["c", "v", "x", "a", "s", "u", "p", "f"].includes(e.key.toLowerCase())) {
-          if (!["c", "v", "x", "a"].includes(e.key.toLowerCase())) {
-            e.preventDefault();
-            return false;
-          }
+        if (!["c", "v", "x", "a", "z"].includes(e.key.toLowerCase())) {
+          e.preventDefault();
+          return false;
         }
       }
       
-      // Prevent F12, F11, etc
       if (["F11", "F12"].includes(e.key)) {
         e.preventDefault();
         return false;
@@ -148,7 +155,10 @@ export default function StudentTaskAttempt() {
   const enterFullscreen = () => {
     const elem = document.documentElement;
     if (elem.requestFullscreen) {
-      elem.requestFullscreen().then(() => setIsFullscreen(true));
+      elem.requestFullscreen().then(() => setIsFullscreen(true)).catch(err => {
+        console.log("Fullscreen error:", err);
+        setIsFullscreen(true);
+      });
     } else if (elem.webkitRequestFullscreen) {
       elem.webkitRequestFullscreen();
       setIsFullscreen(true);
@@ -189,10 +199,11 @@ export default function StudentTaskAttempt() {
         timeTaken: ((task.timeLimit || 45) * 60) - timeRemaining
       };
 
+      console.log("Submitting:", submission);
       await api.post("/student/submissions", submission);
       
       exitFullscreen();
-      navigate(`/student/tasks/${taskId}/result`, { 
+      navigate("/student/tasks", { 
         state: { message: isAuto ? "Test auto-submitted" : "Test submitted successfully" }
       });
     } catch (err) {
@@ -211,8 +222,8 @@ export default function StudentTaskAttempt() {
     try {
       const response = await api.post("/student/run-code", {
         code,
-        language: currentQuestion.language || "python",
-        testCases: currentQuestion.testCases || []
+        language: currentQuestion.programmingLanguage || "python",
+        expectedOutput: currentQuestion.expectedOutput
       });
       
       setTestOutput(response.data.output || "Code executed successfully");
@@ -244,8 +255,15 @@ export default function StudentTaskAttempt() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center text-white">
-          <p className="text-xl mb-4">No questions available</p>
-          <button onClick={() => navigate("/student/tasks")} className="px-6 py-3 bg-teal-500 rounded-lg">
+          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-4xl">❌</span>
+          </div>
+          <p className="text-xl mb-2">Failed to load questions</p>
+          <p className="text-slate-400 mb-6">No questions found for this task</p>
+          <button 
+            onClick={() => navigate("/student/tasks")} 
+            className="px-6 py-3 bg-teal-500 hover:bg-teal-600 rounded-lg transition-colors"
+          >
             Back to Tasks
           </button>
         </div>
@@ -256,7 +274,7 @@ export default function StudentTaskAttempt() {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <div className="h-screen bg-slate-900 flex flex-col overflow-hidden" ref={fullscreenRef}>
+    <div className="h-screen bg-slate-900 flex flex-col overflow-hidden">
       
       {/* Warning Banner */}
       {showWarning && (
@@ -317,7 +335,7 @@ export default function StudentTaskAttempt() {
                   className={`w-10 h-10 rounded-lg font-bold transition-all ${
                     idx === currentQuestionIndex
                       ? 'bg-teal-500 text-white shadow-lg scale-110'
-                      : answers[q.id] && answers[q.id].trim() !== (q.starterCode || "# Write your code here\n").trim()
+                      : answers[q.id] && answers[q.id].trim() !== (q.starterCode || "").trim()
                       ? 'bg-green-600 text-white'
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   }`}
@@ -336,38 +354,29 @@ export default function StudentTaskAttempt() {
               </span>
             </div>
             
-            <h3 className="text-2xl font-bold text-white mb-4">{currentQuestion.title}</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">
+              Question {currentQuestion.questionNumber}
+            </h3>
             
             <div className="prose prose-invert max-w-none">
               <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">
-                {currentQuestion.description}
+                {currentQuestion.questionText}
               </p>
             </div>
 
-            {currentQuestion.difficulty && (
+            {currentQuestion.marks && (
               <div className="mt-4">
-                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                  currentQuestion.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
-                  currentQuestion.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                  'bg-red-500/20 text-red-400'
-                }`}>
-                  {currentQuestion.difficulty.toUpperCase()}
+                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-bold">
+                  Marks: {currentQuestion.marks}
                 </span>
               </div>
             )}
 
-            {currentQuestion.testCases && currentQuestion.testCases.length > 0 && (
+            {currentQuestion.expectedOutput && (
               <div className="mt-6">
-                <h4 className="text-white font-bold mb-3">Example Test Cases:</h4>
-                <div className="space-y-3">
-                  {currentQuestion.testCases.slice(0, 2).map((tc, idx) => (
-                    <div key={idx} className="bg-slate-700 rounded-lg p-4">
-                      <div className="text-sm text-slate-400 mb-1">Input:</div>
-                      <pre className="text-teal-400 font-mono text-sm mb-2">{tc.input}</pre>
-                      <div className="text-sm text-slate-400 mb-1">Expected Output:</div>
-                      <pre className="text-green-400 font-mono text-sm">{tc.expectedOutput}</pre>
-                    </div>
-                  ))}
+                <h4 className="text-white font-bold mb-3">Expected Output:</h4>
+                <div className="bg-slate-700 rounded-lg p-4">
+                  <pre className="text-green-400 font-mono text-sm whitespace-pre-wrap">{currentQuestion.expectedOutput}</pre>
                 </div>
               </div>
             )}
@@ -382,7 +391,7 @@ export default function StudentTaskAttempt() {
             <div className="flex items-center gap-3">
               <span className="text-slate-400 text-sm font-medium">Code Editor</span>
               <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-mono">
-                {currentQuestion.language || "python"}
+                {currentQuestion.programmingLanguage || "python"}
               </span>
             </div>
             
@@ -411,7 +420,7 @@ export default function StudentTaskAttempt() {
           <div className="flex-1">
             <Editor
               height="100%"
-              language={currentQuestion.language || "python"}
+              language={currentQuestion.programmingLanguage || "python"}
               theme="vs-dark"
               value={answers[currentQuestion.id] || ""}
               onChange={(value) => {
@@ -461,7 +470,10 @@ export default function StudentTaskAttempt() {
             Question {currentQuestionIndex + 1} of {questions.length}
           </p>
           <p className="text-slate-500 text-xs mt-1">
-            {Object.keys(answers).filter(id => answers[id].trim() !== (questions.find(q => q.id === parseInt(id))?.starterCode || "").trim()).length} answered
+            {Object.keys(answers).filter(id => {
+              const q = questions.find(q => q.id === parseInt(id));
+              return answers[id].trim() !== (q?.starterCode || "").trim();
+            }).length} answered
           </p>
         </div>
 

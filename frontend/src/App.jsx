@@ -222,11 +222,7 @@ function App() {
                 path="/student/tasks/:taskId/attempt"
                 element={
                   <ProtectedRoute role="student">
-                    <Navbar />
-                    <div className="flex">
-                      <Sidebar role="student" />
-                      <StudentTaskAttempt />
-                    </div>
+                    <StudentTaskAttempt />
                   </ProtectedRoute>
                 }
               />
