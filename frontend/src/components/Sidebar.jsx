@@ -106,42 +106,60 @@ const Sidebar = ({ role }) => {
     navigate("/");
   };
 
+  // Auto-collapse on mobile
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setIsOpen(false);
+      }
+    };
+    
+    handleResize(); // Check on mount
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <aside 
       className={`
         ${isOpen ? "w-64" : "w-20"}
         bg-white
         border-r border-slate-200
-        h-screen 
         sticky 
-        top-16 
+        top-16
         transition-all 
-        duration-300 
-        overflow-hidden
+        duration-300
+        h-screen
+        max-h-[calc(100vh-4rem)]
+        flex
+        flex-col
       `}
     >
       {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 text-left hover:bg-slate-50 transition-all focus:outline-none group border-b border-slate-100"
-        aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-            <span className="text-white text-sm font-bold">
-              {isOpen ? "◀" : "▶"}
-            </span>
-          </div>
-          {isOpen && (
-            <div className="text-xs font-semibold text-slate-600">
-              Menu
+      <div className="flex-shrink-0 border-b border-slate-100 hidden md:block">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full p-4 text-left hover:bg-slate-50 transition-all focus:outline-none group"
+          aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span className="text-white text-sm font-bold">
+                {isOpen ? "◀" : "▶"}
+              </span>
             </div>
-          )}
-        </div>
-      </button>
+            {isOpen && (
+              <div className="text-xs font-semibold text-slate-600">
+                Menu
+              </div>
+            )}
+          </div>
+        </button>
+      </div>
 
-      {/* Navigation */}
-      <nav className="space-y-1 p-3 pb-20" role="navigation">
+      {/* Navigation - Scrollable */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <nav className="space-y-1 p-3" role="navigation">
         {menu.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -182,9 +200,13 @@ const Sidebar = ({ role }) => {
             </Link>
           );
         })}
+        </nav>
+      </div>
 
-        {/* Logout */}
-        <div className="pt-3 mt-3 border-t border-slate-100">
+      {/* Logout & Status - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t border-slate-100 bg-white">
+        <div className="p-3 space-y-3">
+          {/* Logout */}
           <button
             onClick={handleLogout}
             className={`
@@ -208,30 +230,28 @@ const Sidebar = ({ role }) => {
               <span className="text-sm font-medium">Logout</span>
             )}
           </button>
-        </div>
-      </nav>
 
-      {/* Bottom Status - Expanded Only */}
-      {isOpen && (
-        <div className="absolute bottom-3 left-3 right-3">
-          <div className="bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl p-3 text-white">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-xs font-semibold">Online</span>
+          {/* Bottom Status - Expanded Only */}
+          {isOpen && (
+            <div className="bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl p-3 text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-xs font-semibold">Online</span>
+              </div>
+              <div className="text-xs opacity-90">EduTrack v1.0</div>
             </div>
-            <div className="text-xs opacity-90">EduTrack v1.0</div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Collapsed Status Dot */}
-      {!isOpen && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
-          <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          </div>
+          {/* Collapsed Status Dot */}
+          {!isOpen && (
+            <div className="flex justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </aside>
   );
 };
