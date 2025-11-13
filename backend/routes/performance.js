@@ -2,19 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
-
-const verifyToken = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
-    const token = authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Invalid token format' });
-    try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
-        next();
-    } catch (error) {
-        return res.status(401).json({ error: 'Invalid token' });
-    }
-};
+const { verifyToken } = require('../middleware/auth');
 
 const authorize = (roles = []) => {
     return (req, res, next) => {
@@ -26,31 +14,66 @@ const authorize = (roles = []) => {
     };
 };
 
-// GET /api/performance/leaderboard - Global leaderboard
+// GET /api/performance/leaderboard - Get leaderboard of students from same course and section
 router.get('/leaderboard', verifyToken, async (req, res) => {
-    try {
-        const leaderboard = await pool.query(
-            `SELECT ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(sub.total_marks_obtained), 0) DESC) as rank,
-             s.name, s.roll_no, s.course, s.section,
-             COALESCE(SUM(sub.total_marks_obtained), 0) as total_marks,
-             COALESCE(AVG(sub.total_marks_obtained), 0) as accuracy_percentage,
-             COUNT(sub.id) as tasks_completed,
-             CASE 
-                WHEN COALESCE(SUM(sub.total_marks_obtained), 0) >= 90 THEN '🏆 Gold'
-                WHEN COALESCE(SUM(sub.total_marks_obtained), 0) >= 70 THEN '🥈 Silver'
-                WHEN COALESCE(SUM(sub.total_marks_obtained), 0) >= 50 THEN '🥉 Bronze'
-                ELSE NULL
-             END as badge
-             FROM lms.students s
-             LEFT JOIN lms.submissions sub ON s.id = sub.student_id
-             GROUP BY s.id, s.name, s.roll_no, s.course, s.section
-             ORDER BY total_marks DESC LIMIT 50`
-        );
-        res.json({ success: true, leaderboard: leaderboard.rows });
-    } catch (error) {
-        console.error('❌ Leaderboard Error:', error);
-        res.status(500).json({ error: 'Failed to load leaderboard' });
+  try {
+    const { userId } = req.user;
+    
+    // Get current student's course and section
+    const currentStudent = await pool.query(
+      'SELECT course, section FROM lms.students WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (currentStudent.rows.length === 0) {
+      return res.status(404).json({ error: 'Student not found' });
     }
+    
+    const { course, section } = currentStudent.rows[0];
+    
+    // Get leaderboard for students from same course and section only
+    const leaderboard = await pool.query(
+      `SELECT 
+        s.id,
+        s.name,
+        s.roll_no,
+        s.course,
+        s.section,
+        COALESCE(SUM(sub.total_marks_obtained), 0) as total_marks,
+        ROUND(COALESCE(AVG(sub.total_marks_obtained), 0)) as accuracy_percentage,
+        COUNT(sub.id) as tasks_completed,
+        CASE 
+          WHEN COALESCE(SUM(sub.total_marks_obtained), 0) >= 500 THEN 'Master'
+          WHEN COALESCE(SUM(sub.total_marks_obtained), 0) >= 300 THEN 'Expert'
+          WHEN COALESCE(SUM(sub.total_marks_obtained), 0) >= 100 THEN 'Intermediate'
+          ELSE 'Beginner'
+        END as badge
+       FROM lms.students s
+       LEFT JOIN lms.submissions sub ON s.id = sub.student_id AND sub.submission_status = 'graded'
+       WHERE s.course = $1 AND s.section = $2
+       GROUP BY s.id, s.name, s.roll_no, s.course, s.section
+       ORDER BY total_marks DESC, tasks_completed DESC
+       LIMIT 50`,
+      [course, section]
+    );
+
+    // Add rank to each student
+    const leaderboardWithRank = leaderboard.rows.map((student, index) => ({
+      ...student,
+      rank: index + 1,
+      total_marks: parseInt(student.total_marks) || 0,
+      accuracy_percentage: parseInt(student.accuracy_percentage) || 0,
+      tasks_completed: parseInt(student.tasks_completed) || 0
+    }));
+
+    res.json({
+      success: true,
+      leaderboard: leaderboardWithRank
+    });
+  } catch (error) {
+    console.error('❌ Leaderboard Error:', error);
+    res.status(500).json({ error: 'Failed to load leaderboard' });
+  }
 });
 
 // GET /api/performance/student/:studentId - Individual student performance

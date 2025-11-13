@@ -26,7 +26,10 @@ export default function StudentAnalytics() {
 
   useEffect(() => {
     api.get("/student/analytics")
-      .then(res => setData(res.data.data))
+      .then(res => {
+        const analyticsData = res.data.data;
+        setData(analyticsData);
+      })
       .catch(err => {
         console.error(err);
         setError("Failed to load analytics data");
@@ -187,30 +190,42 @@ export default function StudentAnalytics() {
                 <p className="text-xs text-slate-500">Your marks over time</p>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data.markTrend || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: 'none', 
-                    borderRadius: '12px',
-                    color: '#fff',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-                  }} 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="marks" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#3b82f6', r: 6 }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {!data.markTrend || data.markTrend.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">📈</span>
+                  </div>
+                  <p className="text-slate-600 font-semibold mb-1">No Data Available</p>
+                  <p className="text-sm text-slate-500">Complete tasks to see your performance trend</p>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data.markTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: 'none', 
+                      borderRadius: '12px',
+                      color: '#fff',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                    }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="marks" 
+                    stroke="#3b82f6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#3b82f6', r: 6 }}
+                    activeDot={{ r: 8 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Subject Distribution */}
@@ -221,36 +236,52 @@ export default function StudentAnalytics() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-800">Subject Distribution</h2>
-                <p className="text-xs text-slate-500">Marks breakdown by subject</p>
+                <p className="text-xs text-slate-500">Average marks per subject</p>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie 
-                  data={data.subjectDistribution || []} 
-                  dataKey="value" 
-                  nameKey="subject" 
-                  cx="50%" 
-                  cy="50%" 
-                  outerRadius={100}
-                  label={(entry) => `${entry.subject}: ${entry.value}`}
-                  labelLine={false}
-                >
-                  {(data.subjectDistribution || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: 'none', 
-                    borderRadius: '12px',
-                    color: '#fff',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-                  }} 
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {!data.subjectDistribution || data.subjectDistribution.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">📊</span>
+                  </div>
+                  <p className="text-slate-600 font-semibold mb-1">No Data Available</p>
+                  <p className="text-sm text-slate-500">Complete tasks to see your subject distribution</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {data.subjectDistribution.map((item, index) => {
+                  const total = data.subjectDistribution.reduce((sum, i) => sum + i.value, 0);
+                  const percentage = ((item.value / total) * 100).toFixed(1);
+                  const avgMarks = Math.round(item.value);
+                  
+                  return (
+                    <div key={index} className="group">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-4 h-4 rounded-full" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-sm font-semibold text-slate-900">{item.subject}</span>
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">Avg: {avgMarks}/100 ({percentage}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500 group-hover:opacity-80"
+                          style={{ 
+                            width: `${percentage}%`,
+                            backgroundColor: COLORS[index % COLORS.length]
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
         </div>
@@ -266,24 +297,41 @@ export default function StudentAnalytics() {
               <p className="text-xs text-slate-500">Compare your scores across subjects</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={data.performancePerSubject || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1e293b', 
-                  border: 'none', 
-                  borderRadius: '12px',
-                  color: '#fff',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-                }} 
-              />
-              <Legend />
-              <Bar dataKey="marks" fill="#14b8a6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {!data.performancePerSubject || data.performancePerSubject.length === 0 ? (
+            <div className="h-[350px] flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-4xl">📊</span>
+                </div>
+                <p className="text-slate-600 font-semibold mb-1">No Data Available</p>
+                <p className="text-sm text-slate-500">Complete tasks to see subject-wise performance</p>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={data.performancePerSubject}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+                <Tooltip 
+                  formatter={(value) => Math.round(value)}
+                  contentStyle={{ 
+                    backgroundColor: '#1e293b', 
+                    border: 'none', 
+                    borderRadius: '12px',
+                    color: '#fff',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                  }} 
+                />
+                <Legend />
+                <Bar dataKey="marks" radius={[8, 8, 0, 0]}>
+                  {data.performancePerSubject.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
       </div>
