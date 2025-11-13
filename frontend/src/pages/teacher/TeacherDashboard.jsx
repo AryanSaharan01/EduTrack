@@ -186,12 +186,14 @@ export default function TeacherDashboard() {
                 <p className="text-3xl font-bold text-slate-900">{totalTasks}</p>
               </div>
             </div>
-            <AppLink to="/teacher/tasks" className="text-sm text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1 group">
-              View all tasks
-              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </AppLink>
+            <div className="flex items-center gap-2">
+              <AppLink to="/teacher/tasks" className="text-sm text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1 group">
+                View tasks
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </AppLink>
+            </div>
           </div>
 
           <div className="group bg-white rounded-2xl shadow-md p-6 border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all cursor-pointer animate-slide-up" style={{ animationDelay: '400ms' }}>
@@ -290,6 +292,16 @@ export default function TeacherDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   View Analytics
+                </AppLink>
+
+                <AppLink
+                  to="/teacher/tasks"
+                  className="flex items-center gap-3 w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold px-5 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  View Submissions
                 </AppLink>
               </div>
             </div>

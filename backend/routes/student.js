@@ -377,6 +377,89 @@ router.get("/tasks", verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/student/submissions - Submit task answers
+router.post('/submissions', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { taskId, answers, tabSwitchCount, timeTaken } = req.body;
+
+    console.log('📝 Submission received:', { userId, taskId, answersCount: answers?.length });
+
+    if (!taskId || !answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: 'Invalid submission data' });
+    }
+
+    const studentResult = await pool.query(
+      'SELECT id FROM lms.students WHERE user_id = $1',
+      [userId]
+    );
+
+    if (studentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const studentId = studentResult.rows[0].id;
+
+    await pool.query('BEGIN');
+
+    try {
+      // Create submission
+      const submissionResult = await pool.query(
+        `INSERT INTO lms.submissions (task_id, student_id, submitted_at, submission_status, total_marks_obtained)
+         VALUES ($1, $2, NOW(), 'submitted', 0)
+         RETURNING id`,
+        [taskId, studentId]
+      );
+
+      const submissionId = submissionResult.rows[0].id;
+      console.log('✅ Submission created:', submissionId);
+
+      // Insert answers
+      for (const answer of answers) {
+        await pool.query(
+          `INSERT INTO lms.submission_answers (submission_id, question_id, answer_code, marks_awarded)
+           VALUES ($1, $2, $3, 0)`,
+          [submissionId, answer.questionId, answer.code]
+        );
+      }
+
+      await pool.query('COMMIT');
+      console.log('✅ All answers saved for submission:', submissionId);
+
+      res.json({
+        success: true,
+        submissionId: submissionId,
+        message: 'Submission successful'
+      });
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      console.error('❌ Submission transaction error:', err);
+      throw err;
+    }
+  } catch (error) {
+    console.error('❌ Submission Error:', error);
+    res.status(500).json({ error: 'Failed to submit answers', details: error.message });
+  }
+});
+
+// POST /api/student/run-code - Run code (mock execution)
+router.post('/run-code', verifyToken, async (req, res) => {
+  try {
+    const { code, language, expectedOutput } = req.body;
+
+    console.log(`🏃 Running ${language} code...`);
+    
+    // Mock execution - integrate with actual code runner in production
+    res.json({
+      success: true,
+      output: `Code executed successfully!\n\nExpected Output:\n${expectedOutput || 'No expected output provided'}\n\n✅ Code compiled and ran without errors.\n\nNote: This is a mock execution. Integrate with Judge0, Piston, or similar service for actual code execution.`
+    });
+  } catch (error) {
+    console.error('❌ Run Code Error:', error);
+    res.status(500).json({ error: 'Failed to run code', details: error.message });
+  }
+});
+
 module.exports = router;
 
 

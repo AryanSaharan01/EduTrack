@@ -21,6 +21,9 @@ import ClassAnalytics from './pages/teacher/ClassAnalytics';
 import SubjectManagement from './pages/teacher/SubjectManagement';
 import TeacherProfile from './pages/teacher/TeacherProfile';
 import SubjectAssignment from './pages/teacher/SubjectAssignment';
+import TeacherTaskSubmissions from './pages/teacher/TaskSubmissions';
+import SubmissionGrading from './pages/teacher/SubmissionGrading';
+import TeacherTasksList from './pages/teacher/TeacherTasksList';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -79,7 +82,7 @@ function App() {
                     <Navbar />
                     <div className="flex">
                       <Sidebar role="teacher" />
-                      <StudentTasks />
+                      <TeacherTasksList />
                     </div>
                   </ProtectedRoute>
                 }
@@ -164,6 +167,30 @@ function App() {
                     <div className="flex">
                       <Sidebar role="teacher" />
                       <SubjectAssignment />
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/tasks/:taskId/submissions"
+                element={
+                  <ProtectedRoute role="teacher">
+                    <Navbar />
+                    <div className="flex">
+                      <Sidebar role="teacher" />
+                      <TeacherTaskSubmissions />
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/submissions/:submissionId"
+                element={
+                  <ProtectedRoute role="teacher">
+                    <Navbar />
+                    <div className="flex">
+                      <Sidebar role="teacher" />
+                      <SubmissionGrading />
                     </div>
                   </ProtectedRoute>
                 }

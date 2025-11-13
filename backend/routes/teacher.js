@@ -580,4 +580,211 @@ router.get("/subjects/available", verifyToken, authorizeTeacher, async (req, res
   }
 });
 
+// GET /api/teacher/my-tasks - Get all tasks created by this teacher
+router.get('/my-tasks', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { userId } = req.user;
+
+    const teacherResult = await pool.query(
+      'SELECT id FROM lms.teachers WHERE user_id = $1',
+      [userId]
+    );
+
+    if (teacherResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+
+    const teacherId = teacherResult.rows[0].id;
+
+    const tasks = await pool.query(
+      `SELECT 
+        t.id,
+        t.title,
+        t.description,
+        t.difficulty,
+        t.time_limit_minutes,
+        t.deadline,
+        t.status,
+        t.created_at,
+        COUNT(DISTINCT tq.id) as question_count,
+        COUNT(DISTINCT sub.id) as submission_count,
+        s.name as subject_name,
+        c.name as course_name,
+        sec.name as section_name
+       FROM lms.tasks t
+       JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+       JOIN lms.subjects s ON tsa.subject_id = s.id
+       JOIN lms.courses c ON tsa.course_id = c.id
+       JOIN lms.sections sec ON tsa.section_id = sec.id
+       LEFT JOIN lms.task_questions tq ON t.id = tq.task_id
+       LEFT JOIN lms.submissions sub ON t.id = sub.task_id
+       WHERE tsa.teacher_id = $1
+       GROUP BY t.id, s.name, c.name, sec.name
+       ORDER BY t.created_at DESC`,
+      [teacherId]
+    );
+
+    res.json({
+      success: true,
+      tasks: tasks.rows
+    });
+  } catch (error) {
+    console.error('❌ Get My Tasks Error:', error);
+    res.status(500).json({ error: 'Failed to load tasks' });
+  }
+});
+
+// GET /api/teacher/tasks/:taskId/submissions - Get all submissions for a task
+router.get('/tasks/:taskId/submissions', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    const submissions = await pool.query(
+      `SELECT 
+        sub.id as submission_id,
+        sub.submitted_at,
+        sub.total_marks_obtained,
+        sub.submission_status,
+        s.id as student_id,
+        s.name as student_name,
+        s.roll_no,
+        u.email,
+        COUNT(sa.id) as answers_count
+       FROM lms.submissions sub
+       JOIN lms.students s ON sub.student_id = s.id
+       JOIN lms.users u ON s.user_id = u.id
+       LEFT JOIN lms.submission_answers sa ON sub.id = sa.submission_id
+       WHERE sub.task_id = $1
+       GROUP BY sub.id, s.id, s.name, s.roll_no, u.email
+       ORDER BY sub.submitted_at DESC`,
+      [taskId]
+    );
+
+    res.json({
+      success: true,
+      submissions: submissions.rows
+    });
+  } catch (error) {
+    console.error('❌ Get Submissions Error:', error);
+    res.status(500).json({ error: 'Failed to load submissions' });
+  }
+});
+
+// GET /api/teacher/submissions/:submissionId - Get detailed submission with answers
+router.get('/submissions/:submissionId', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+
+    // Get submission details
+    const submissionResult = await pool.query(
+      `SELECT 
+        sub.id,
+        sub.task_id,
+        sub.submitted_at,
+        sub.total_marks_obtained,
+        sub.submission_status,
+        s.id as student_id,
+        s.name as student_name,
+        s.roll_no,
+        u.email as student_email,
+        t.title as task_title,
+        t.difficulty,
+        t.time_limit_minutes
+       FROM lms.submissions sub
+       JOIN lms.students s ON sub.student_id = s.id
+       JOIN lms.users u ON s.user_id = u.id
+       JOIN lms.tasks t ON sub.task_id = t.id
+       WHERE sub.id = $1`,
+      [submissionId]
+    );
+
+    if (submissionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const submission = submissionResult.rows[0];
+
+    // Get all answers with question details
+    const answersResult = await pool.query(
+      `SELECT 
+        sa.id as answer_id,
+        sa.answer_code,
+        sa.marks_awarded,
+        tq.id as question_id,
+        tq.question_number,
+        tq.question_text,
+        tq.programming_language,
+        tq.expected_output,
+        tq.marks as total_marks
+       FROM lms.submission_answers sa
+       JOIN lms.task_questions tq ON sa.question_id = tq.id
+       WHERE sa.submission_id = $1
+       ORDER BY tq.question_number`,
+      [submissionId]
+    );
+
+    res.json({
+      success: true,
+      submission: {
+        ...submission,
+        answers: answersResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get Submission Details Error:', error);
+    res.status(500).json({ error: 'Failed to load submission details' });
+  }
+});
+
+// PUT /api/teacher/submissions/:submissionId/grade - Grade a submission
+router.put('/submissions/:submissionId/grade', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { answers } = req.body; // Array of { answerId, marksAwarded }
+
+    if (!answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: 'Invalid grading data' });
+    }
+
+    await pool.query('BEGIN');
+
+    let totalMarks = 0;
+
+    // Update marks for each answer
+    for (const answer of answers) {
+      await pool.query(
+        `UPDATE lms.submission_answers 
+         SET marks_awarded = $1 
+         WHERE id = $2`,
+        [answer.marksAwarded, answer.answerId]
+      );
+      totalMarks += answer.marksAwarded;
+    }
+
+    // Update submission total marks and status
+    await pool.query(
+      `UPDATE lms.submissions 
+       SET total_marks_obtained = $1, 
+           submission_status = 'graded',
+           updated_at = NOW()
+       WHERE id = $2`,
+      [totalMarks, submissionId]
+    );
+
+    await pool.query('COMMIT');
+
+    console.log(`✅ Submission ${submissionId} graded with total marks: ${totalMarks}`);
+
+    res.json({
+      success: true,
+      message: 'Submission graded successfully',
+      totalMarks
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('❌ Grade Submission Error:', error);
+    res.status(500).json({ error: 'Failed to grade submission' });
+  }
+});
+
 module.exports = router;
