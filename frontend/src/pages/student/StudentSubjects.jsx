@@ -10,9 +10,12 @@ export default function StudentSubjects() {
 
   useEffect(() => {
     api.get("/student/subjects")
-      .then(res => setSubjects(res.data.subjects))
+      .then(res => {
+        console.log("✅ Subjects API Response:", res.data);
+        setSubjects(res.data.subjects || []);
+      })
       .catch(err => {
-        console.error(err);
+        console.error("❌ Error fetching subjects:", err);
         setError("Failed to load subjects");
       })
       .finally(() => setLoading(false));
@@ -115,8 +118,12 @@ export default function StudentSubjects() {
                 <span className="text-2xl">📊</span>
               </div>
               <div>
-                <p className="text-sm text-slate-500 font-medium">Completion Rate</p>
-                <p className="text-2xl font-bold text-slate-900">25%</p>
+                <p className="text-sm text-slate-500 font-medium">Avg. Completion</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {subjects.length > 0 
+                    ? Math.round(subjects.reduce((sum, s) => sum + (parseInt(s.completion_rate) || 0), 0) / subjects.length) 
+                    : 0}%
+                </p>
               </div>
             </div>
           </div>
@@ -173,12 +180,33 @@ export default function StudentSubjects() {
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-3 mb-5">
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-slate-500 mb-1">Tasks</p>
-                        <p className="text-lg font-bold text-slate-900">{subject.taskCount || 0}</p>
+                        <p className="text-xs text-slate-500 mb-1">Total Tasks</p>
+                        <p className="text-lg font-bold text-slate-900">{subject.total_tasks || 0}</p>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-slate-500 mb-1">Progress</p>
-                        <p className="text-lg font-bold text-slate-900">75%</p>
+                        <p className="text-xs text-slate-500 mb-1">Completed</p>
+                        <p className="text-lg font-bold text-slate-900">{subject.completed_tasks || 0}</p>
+                      </div>
+                    </div>
+
+                    {/* Additional Stats */}
+                    <div className="flex flex-col gap-4 mb-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Progress
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-slate-200 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
+                              style={{ width: `${subject.completion_rate || 0}%` }}
+                            />
+                          </div>
+                          <span className="font-bold text-slate-900">{subject.completion_rate || 0}%</span>
+                        </div>
                       </div>
                     </div>
 

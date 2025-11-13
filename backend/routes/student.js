@@ -20,108 +20,113 @@ router.get('/dashboard', verifyToken, async (req, res) => {
     try {
         const { userId } = req.user;
         
-        // Get student profile
-        const studentResult = await pool.query(
-            `SELECT s.*, u.email FROM lms.students s 
-             JOIN lms.users u ON s.user_id = u.id 
-             WHERE s.user_id = $1`,
-            [userId]
-        );
-        
+        const studentResult = await pool.query('SELECT * FROM lms.students WHERE user_id = $1', [userId]);
         if (studentResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Student profile not found' });
+            return res.status(404).json({ error: 'Student not found' });
         }
         
         const student = studentResult.rows[0];
-
+        const studentId = student.id;
+        
+        // Check enrollment
+        const enrollmentCheck = await pool.query(
+          'SELECT COUNT(*) as count FROM lms.enrollments WHERE student_id = $1',
+          [studentId]
+        );
+        const enrolled = parseInt(enrollmentCheck.rows[0].count) > 0;
+        
+        if (!enrolled) {
+          return res.json({
+            success: true,
+            data: { student, enrolled: false }
+          });
+        }
+        
         // Get enrolled subjects
-        const subjectsResult = await pool.query(
-            `SELECT DISTINCT sub.id, sub.name, sub.code, sub.description, t.name as teacher_name
-             FROM lms.enrollments e
-             JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
-             JOIN lms.subjects sub ON tsa.subject_id = sub.id
-             LEFT JOIN lms.teachers t ON tsa.teacher_id = t.id
-             WHERE e.student_id = $1 
-             ORDER BY sub.name`,
-            [student.id]
-        );
-
-        // Get upcoming tasks
-        const upcomingTasksResult = await pool.query(
-            `SELECT DISTINCT t.id, t.title, t.description, t.difficulty, t.deadline, sub.name as subject
-             FROM lms.tasks t
-             JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
-             JOIN lms.subjects sub ON tsa.subject_id = sub.id
-             JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
-             LEFT JOIN lms.submissions s ON t.id = s.task_id AND s.student_id = $1
-             WHERE e.student_id = $1 AND t.status = 'published' AND t.deadline > NOW() AND s.id IS NULL
-             ORDER BY t.deadline ASC LIMIT 5`,
-            [student.id]
-        );
-
-        // Get notifications
-        const notificationsResult = await pool.query(
-            `SELECT n.id, n.message, n.sent_at as timestamp, COALESCE(snr.is_read, false) as is_read
-             FROM lms.notifications n
-             LEFT JOIN lms.student_notification_read snr ON n.id = snr.notification_id AND snr.student_id = $1
-             ORDER BY n.sent_at DESC LIMIT 10`,
-            [student.id]
-        );
-
-        // Get stats
-        const statsResult = await pool.query(
-            `SELECT 
-             COUNT(DISTINCT t.id) as total_tasks, 
-             COUNT(DISTINCT s.id) as submitted_tasks,
-             COALESCE(AVG(s.total_marks_obtained), 0) as avg_marks
-             FROM lms.enrollments e
-             JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
-             LEFT JOIN lms.tasks t ON tsa.id = t.teacher_subject_assignment_id AND t.status = 'published'
-             LEFT JOIN lms.submissions s ON t.id = s.task_id AND s.student_id = $1
-             WHERE e.student_id = $1`,
-            [student.id]
+        const subjects = await pool.query(
+          `SELECT DISTINCT s.id, s.name, s.code
+           FROM lms.subjects s
+           JOIN lms.teacher_subject_assignments tsa ON s.id = tsa.subject_id
+           JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
+           WHERE e.student_id = $1`,
+          [studentId]
         );
         
-        const stats = statsResult.rows[0] || { total_tasks: 0, submitted_tasks: 0, avg_marks: 0 };
-
-        // Check if enrolled
-        const enrolledCheck = await pool.query(
-            `SELECT 1 FROM lms.enrollments WHERE student_id = $1 LIMIT 1`, 
-            [student.id]
+        // Get upcoming tasks
+        const upcomingTasks = await pool.query(
+          `SELECT t.id, t.title, t.deadline, s.name as subject
+           FROM lms.tasks t
+           JOIN lms.teacher_subject_assignments tsa ON t.teacher_subject_assignment_id = tsa.id
+           JOIN lms.subjects s ON tsa.subject_id = s.id
+           JOIN lms.enrollments e ON tsa.id = e.teacher_subject_assignment_id
+           LEFT JOIN lms.submissions sub ON t.id = sub.task_id AND sub.student_id = $1
+           WHERE e.student_id = $1 AND t.status = 'published' AND sub.id IS NULL
+           ORDER BY t.deadline ASC LIMIT 5`,
+          [studentId]
         );
-        const enrolled = enrolledCheck.rows.length > 0;
-
-        res.json({
-            success: true,
-            data: {
-                student: {
-                    id: student.id, 
-                    name: student.name, 
-                    email: student.email,
-                    roll_no: student.roll_no, 
-                    course: student.course, 
-                    section: student.section,
-                },
-                subjects: subjectsResult.rows,
-                upcomingTasks: upcomingTasksResult.rows,
-                notifications: notificationsResult.rows,
-                rank: null,
-                streak: 0,
-                enrolled,
-                stats: {
-                    totalTasks: parseInt(stats.total_tasks) || 0,
-                    submittedTasks: parseInt(stats.submitted_tasks) || 0,
-                    averageMarks: Number(parseFloat(stats.avg_marks || 0).toFixed(2)) || 0
-                }
-            }
-        });
-    } catch (error) {
-        console.error('❌ Dashboard Error:', error);
-        res.status(500).json({ error: 'Failed to load dashboard data', details: error.message });
-    }
-});
-
-router.get('/subjects', verifyToken, async (req, res) => {
+        
+        // Calculate student's rank in their course and section
+        const rankResult = await pool.query(
+          `WITH ranked_students AS (
+            SELECT 
+              s.id,
+              COALESCE(SUM(sub.total_marks_obtained), 0) as total_marks,
+              RANK() OVER (ORDER BY COALESCE(SUM(sub.total_marks_obtained), 0) DESC) as rank
+            FROM lms.students s
+            LEFT JOIN lms.submissions sub ON s.id = sub.student_id AND sub.submission_status = 'graded'
+            WHERE s.course = $2 AND s.section = $3
+            GROUP BY s.id
+          )
+          SELECT rank FROM ranked_students WHERE id = $1`,
+          [studentId, student.course, student.section]
+        );
+        
+    const rank = rankResult.rows.length > 0 ? parseInt(rankResult.rows[0].rank) : null;
+    
+    // Calculate active streak (consecutive days with submissions)
+    const streakResult = await pool.query(
+      `WITH RECURSIVE submission_dates AS (
+        SELECT DISTINCT DATE(submitted_at) as submission_date
+        FROM lms.submissions
+        WHERE student_id = $1
+        ORDER BY submission_date DESC
+      ),
+      streak_calc AS (
+        SELECT 
+          submission_date,
+          submission_date = CURRENT_DATE OR submission_date = CURRENT_DATE - 1 as is_recent,
+          LAG(submission_date) OVER (ORDER BY submission_date DESC) as prev_date
+        FROM submission_dates
+      )
+      SELECT COUNT(*) as streak
+      FROM streak_calc
+      WHERE is_recent = true 
+      AND (prev_date IS NULL OR submission_date - prev_date = 1 OR submission_date = prev_date)`,
+      [studentId]
+    );
+    
+    const streak = streakResult.rows.length > 0 ? parseInt(streakResult.rows[0].streak) || 0 : 0;
+    
+    // Get notifications (placeholder)
+    const notifications = [];
+    
+    res.json({
+      success: true,
+      data: {
+        student,
+        enrolled: true,
+        subjects: subjects.rows,
+        upcomingTasks: upcomingTasks.rows,
+        notifications,
+        rank,
+        streak
+      }
+    });
+  } catch (error) {
+    console.error('❌ Dashboard Error:', error);
+    res.status(500).json({ error: 'Failed to load dashboard', details: error.message });
+  }
+});router.get('/subjects', verifyToken, async (req, res) => {
     try {
         const { userId } = req.user;
         const studentResult = await pool.query('SELECT id FROM lms.students WHERE user_id = $1', [userId]);
@@ -129,12 +134,28 @@ router.get('/subjects', verifyToken, async (req, res) => {
         const studentId = studentResult.rows[0].id;
         
         const subjects = await pool.query(
-            `SELECT DISTINCT sub.id, sub.name, sub.code, sub.description, t.name as teacher_name, t.employee_id
+            `SELECT DISTINCT 
+                sub.id, 
+                sub.name, 
+                sub.code, 
+                sub.description, 
+                t.name as teacher_name, 
+                t.employee_id,
+                COUNT(DISTINCT t2.id) as total_tasks,
+                COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN t2.id END) as completed_tasks,
+                CASE 
+                    WHEN COUNT(DISTINCT t2.id) > 0 
+                    THEN ROUND((COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN t2.id END)::numeric / COUNT(DISTINCT t2.id)::numeric) * 100, 0)
+                    ELSE 0 
+                END as completion_rate
              FROM lms.enrollments e
              JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
              JOIN lms.subjects sub ON tsa.subject_id = sub.id
              LEFT JOIN lms.teachers t ON tsa.teacher_id = t.id
+             LEFT JOIN lms.tasks t2 ON tsa.id = t2.teacher_subject_assignment_id AND t2.status = 'published'
+             LEFT JOIN lms.submissions s ON t2.id = s.task_id AND s.student_id = $1
              WHERE e.student_id = $1 
+             GROUP BY sub.id, sub.name, sub.code, sub.description, t.name, t.employee_id
              ORDER BY sub.name`,
             [studentId]
         );
