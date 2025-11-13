@@ -41,7 +41,13 @@ export default function StudentTasks() {
             
             if (Array.isArray(tasksArray) && tasksArray.length > 0) {
               tasksArray.forEach(task => {
-                console.log(`✅ Task: ${task.title}, Questions: ${task.questions?.length || task.questionCount || 0}`);
+                console.log(`✅ Task: ${task.title}, Questions: ${task.questions?.length || task.questionCount || 0}, Submitted: ${task.is_submitted}`);
+                
+                // Determine task status based on submission
+                let taskStatus = task.status || 'published';
+                if (task.is_submitted) {
+                  taskStatus = 'completed';
+                }
                 
                 allTasks.push({
                   id: task.id,
@@ -50,7 +56,8 @@ export default function StudentTasks() {
                   difficulty: task.difficulty || 'medium',
                   deadline: task.deadline,
                   timeLimit: task.timeLimit || 45,
-                  status: task.status || 'published',
+                  status: taskStatus,
+                  isSubmitted: task.is_submitted || false,
                   questionCount: task.questionCount || task.questions?.length || 0,
                   questions: task.questions || [],
                   subject: {
@@ -300,7 +307,7 @@ export default function StudentTasks() {
               return (
                 <div 
                   key={task.id} 
-                  className="group bg-white rounded-2xl shadow-md border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all overflow-hidden"
+                  className="group bg-white rounded-2xl shadow-md border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all overflow-hidden flex flex-col"
                 >
                   {/* Header */}
                   <div className={`bg-gradient-to-br ${diffColor.bg} border-b ${diffColor.border} p-6`}>
@@ -321,8 +328,8 @@ export default function StudentTasks() {
                   </div>
 
                   {/* Body */}
-                  <div className="p-6">
-                    <div className="space-y-3 mb-5">
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="space-y-3 mb-5 flex-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500 flex items-center gap-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,16 +375,25 @@ export default function StudentTasks() {
                       </div>
                     </div>
 
-                    {/* View Details Button */}
-                    <button 
-                      onClick={() => navigate(`/student/tasks/${task.id}`)}
-                      className={`w-full text-center bg-gradient-to-r ${diffColor.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2`}
-                    >
-                      View Details
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </button>
+                    {/* View Details Button or Completed Badge */}
+                    {task.isSubmitted ? (
+                      <div className="w-full text-center bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-default">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Completed ✓
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => navigate(`/student/tasks/${task.id}`)}
+                        className={`w-full text-center bg-gradient-to-r ${diffColor.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2`}
+                      >
+                        View Details
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
