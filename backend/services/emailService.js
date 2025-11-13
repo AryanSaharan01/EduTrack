@@ -42,7 +42,7 @@ async function sendOTPEmail(to, otp) {
       from: `"EduTrack Pro LMS - Security Team" <${process.env.SMTP_USER}>`,
       to,
       subject: "Your Verification Code for EduTrack Pro LMS",
-      text: `Your verification code is ${otp}. This code will expire in 10 minutes. If you didn't request this code, please ignore this email.`,
+      text: `Your verification code is ${otp}. This code will expire in 2 minutes. If you didn't request this code, please ignore this email.`,
       html: `
         <!DOCTYPE html>
         <html lang="en">
@@ -119,7 +119,7 @@ async function sendOTPEmail(to, otp) {
                                     </span>
                                   </div>
                                   <p style="margin: 16px 0 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
-                                    Code expires in <strong style="color: #DC2626;">10 minutes</strong>
+                                    Code expires in <strong style="color: #DC2626;">2 minutes</strong>
                                   </p>
                                 </td>
                               </tr>
