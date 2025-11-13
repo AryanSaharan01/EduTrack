@@ -70,7 +70,8 @@ export default function SubmissionGrading() {
   };
 
   const getMaxMarks = () => {
-    return submission?.answers.reduce((sum, answer) => sum + answer.total_marks, 0) || 0;
+    // Each question is worth 5 marks
+    return (submission?.answers.length || 0) * 5;
   };
 
   if (loading) {
@@ -208,26 +209,49 @@ export default function SubmissionGrading() {
                 )}
 
                 {/* Grading */}
-                <div className="flex items-center gap-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">
-                      Marks Awarded (Out of {answer.total_marks}):
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-bold text-slate-700">
+                      Award Marks:
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max={answer.total_marks}
-                      value={marks[answer.answer_id] || 0}
-                      onChange={(e) => handleMarkChange(answer.answer_id, e.target.value)}
-                      disabled={isGraded}
-                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 transition-all text-slate-900 font-bold text-lg disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-600 font-medium">Select:</span>
+                      <div className="flex items-center gap-1.5">
+                        {[0, 1, 2, 3, 4, 5].map((mark) => (
+                          <button
+                            key={mark}
+                            type="button"
+                            onClick={() => handleMarkChange(answer.answer_id, mark)}
+                            disabled={isGraded}
+                            className={`
+                              w-10 h-10 rounded-lg font-bold text-sm transition-all
+                              ${marks[answer.answer_id] === mark
+                                ? 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-lg scale-110 ring-2 ring-indigo-300'
+                                : 'bg-white text-slate-700 border-2 border-slate-300 hover:border-indigo-400 hover:shadow-sm hover:scale-105'
+                              }
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+                            `}
+                          >
+                            {mark}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm text-slate-600 mb-1">Score</p>
-                    <p className="text-2xl font-bold text-indigo-600">
-                      {((marks[answer.answer_id] || 0) / answer.total_marks * 100).toFixed(0)}%
-                    </p>
+                  <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-indigo-200">
+                    <span className="text-sm font-medium text-slate-600">Marks Awarded:</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <span className="text-2xl font-bold text-indigo-600">
+                          {marks[answer.answer_id] || 0}
+                        </span>
+                        <span className="text-base text-slate-500 font-medium">/ 5</span>
+                      </div>
+                      <div className="h-6 w-px bg-slate-300"></div>
+                      <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md text-sm font-bold">
+                        {((marks[answer.answer_id] || 0) / 5 * 100).toFixed(0)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
