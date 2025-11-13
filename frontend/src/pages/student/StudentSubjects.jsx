@@ -121,7 +121,7 @@ export default function StudentSubjects() {
                 <p className="text-sm text-slate-500 font-medium">Avg. Completion</p>
                 <p className="text-2xl font-bold text-slate-900">
                   {subjects.length > 0 
-                    ? Math.round(subjects.reduce((sum, s) => sum + (parseInt(s.completion_rate) || 0), 0) / subjects.length) 
+                    ? Math.round(subjects.reduce((sum, s) => sum + ((parseInt(s.completed_tasks) || 0) / 10 * 100), 0) / subjects.length) 
                     : 0}%
                 </p>
               </div>
@@ -154,7 +154,7 @@ export default function StudentSubjects() {
               return (
                 <div 
                   key={subject.id} 
-                  className="group bg-white rounded-2xl shadow-md border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all overflow-hidden"
+                  className="group bg-white rounded-2xl shadow-md border border-slate-200 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all overflow-hidden flex flex-col"
                 >
                   {/* Header with gradient */}
                   <div className={`bg-gradient-to-br ${colorScheme.bg} border-b ${colorScheme.border} p-6`}>
@@ -172,7 +172,7 @@ export default function StudentSubjects() {
                   </div>
 
                   {/* Body */}
-                  <div className="p-6">
+                  <div className="p-6 flex-1 flex flex-col">
                     <p className="text-sm text-slate-600 mb-4 leading-relaxed">
                       {subject.description || "Explore comprehensive course materials, assignments, and resources for this subject."}
                     </p>
@@ -202,15 +202,15 @@ export default function StudentSubjects() {
                           <div className="w-24 bg-slate-200 rounded-full h-2">
                             <div 
                               className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
-                              style={{ width: `${subject.completion_rate || 0}%` }}
+                              style={{ width: `${((subject.completed_tasks || 0) / 10) * 100}%` }}
                             />
                           </div>
-                          <span className="font-bold text-slate-900">{subject.completion_rate || 0}%</span>
+                          <span className="font-bold text-slate-900">{subject.completed_tasks || 0}/10</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Action Button */}
+                    {/* Action Button - pushed to bottom with mt-auto */}
                     <button 
                       onClick={() => {
                         console.log("=== BUTTON CLICKED ===");
@@ -219,7 +219,7 @@ export default function StudentSubjects() {
                         console.log("Navigating to:", `/student/subjects/${subject.id}`);
                         navigate(`/student/subjects/${subject.id}`);
                       }}
-                      className={`w-full text-center bg-gradient-to-r ${colorScheme.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all`}
+                      className={`w-full text-center bg-gradient-to-r ${colorScheme.gradient} text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all mt-auto`}
                     >
                       <span className="flex items-center justify-center gap-2">
                         View Details

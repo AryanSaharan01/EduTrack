@@ -131,7 +131,7 @@ export default function StudentSubjectDetails() {
               </div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">Completed</p>
-                <p className="text-2xl font-bold text-slate-900">{tasks.filter(t => t.status === 'completed').length}</p>
+                <p className="text-2xl font-bold text-slate-900">{tasks.filter(t => t.is_submitted).length}</p>
               </div>
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function StudentSubjectDetails() {
               </div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">Pending</p>
-                <p className="text-2xl font-bold text-slate-900">{tasks.filter(t => t.status !== 'completed').length}</p>
+                <p className="text-2xl font-bold text-slate-900">{tasks.filter(t => !t.is_submitted).length}</p>
               </div>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function StudentSubjectDetails() {
               <div>
                 <p className="text-sm text-slate-500 font-medium">Progress</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0}%
+                  {tasks.length > 0 ? Math.round((tasks.filter(t => t.is_submitted).length / tasks.length) * 100) : 0}%
                 </p>
               </div>
             </div>
@@ -199,8 +199,15 @@ export default function StudentSubjectDetails() {
                       <div className={`px-3 py-1 bg-gradient-to-r ${diffColor.gradient} text-white rounded-lg text-xs font-bold shadow-sm`}>
                         {task.difficulty.toUpperCase()}
                       </div>
-                      {task.status === "published" && (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                      {task.is_submitted ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Done
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
                           Active
                         </span>
                       )}
@@ -231,9 +238,9 @@ export default function StudentSubjectDetails() {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => navigate(`/student/tasks/${task.id}`)}
-                        className="flex-1 text-center bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition-all text-sm"
+                        className={`flex-1 text-center ${task.is_submitted ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-purple-500 to-pink-500'} text-white font-semibold px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition-all text-sm`}
                       >
-                        View Details
+                        {task.is_submitted ? 'View Submission' : 'Start Task'}
                       </button>
                     </div>
                   </div>
