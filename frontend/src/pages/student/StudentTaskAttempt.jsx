@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../utils/api.js";
 import Editor from "@monaco-editor/react";
+import { io } from "socket.io-client";
 
 export default function StudentTaskAttempt() {
   const { taskId } = useParams();
@@ -18,6 +19,7 @@ export default function StudentTaskAttempt() {
   const [showWarning, setShowWarning] = useState(false);
   const [testOutput, setTestOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [socket, setSocket] = useState(null);
   
   const timerRef = useRef(null);
 
@@ -151,6 +153,86 @@ export default function StudentTaskAttempt() {
       document.removeEventListener("keydown", preventActions);
     };
   }, []);
+
+  // Socket.IO connection for live preview
+  useEffect(() => {
+    // Get student ID from auth context (localStorage)
+    const userStr = localStorage.getItem('user');
+    if (!userStr || !task) return;
+    
+    const user = JSON.parse(userStr);
+    const studentId = user.id;
+
+    // Get socket URL from environment variables
+    let socketUrl = import.meta.env.VITE_SOCKET_URL;
+    
+    // Fallback: derive from API URL if socket URL not set
+    if (!socketUrl && import.meta.env.VITE_API_URL) {
+      socketUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+    }
+    
+    // Final fallback to localhost
+    if (!socketUrl) {
+      socketUrl = 'http://localhost:5000';
+    }
+
+    console.log('[STUDENT] Connecting to socket:', socketUrl);
+
+    // Create socket connection
+    const newSocket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
+
+    newSocket.on('connect', () => {
+      console.log('[STUDENT] Socket connected:', newSocket.id);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('[STUDENT] Socket connection error:', error.message);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('[STUDENT] Socket disconnected:', reason);
+    });
+
+    setSocket(newSocket);
+
+    // Cleanup on unmount
+    return () => {
+      console.log('[STUDENT] Disconnecting socket');
+      newSocket.disconnect();
+    };
+  }, [task]);
+
+  // Emit student activity updates
+  useEffect(() => {
+    if (!socket || !task || questions.length === 0) return;
+
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return;
+    
+    const user = JSON.parse(userStr);
+    const studentId = user.id;
+    const currentQuestion = questions[currentQuestionIndex];
+    
+    if (!currentQuestion) return;
+
+    const activityData = {
+      studentId,
+      taskId: parseInt(taskId),
+      currentQuestion: currentQuestion.questionNumber,
+      code: answers[currentQuestion.id] || '',
+      status: 'active',
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('[STUDENT] Emitting student-update:', activityData);
+    socket.emit('student-update', activityData);
+
+  }, [socket, task, questions, currentQuestionIndex, answers, taskId]);
 
   const enterFullscreen = () => {
     const elem = document.documentElement;

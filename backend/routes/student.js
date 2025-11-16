@@ -19,14 +19,19 @@ const verifyToken = (req, res, next) => {
 router.get('/dashboard', verifyToken, async (req, res) => {
     try {
         const { userId } = req.user;
+        console.log(`[STUDENT DASHBOARD] Request from user ID: ${userId}`);
         
         const studentResult = await pool.query('SELECT * FROM lms.students WHERE user_id = $1', [userId]);
+        console.log(`[STUDENT DASHBOARD] Student query returned ${studentResult.rows.length} rows`);
+        
         if (studentResult.rows.length === 0) {
+            console.warn(`[STUDENT DASHBOARD] No student found for user ID: ${userId}`);
             return res.status(404).json({ error: 'Student not found' });
         }
         
         const student = studentResult.rows[0];
         const studentId = student.id;
+        console.log(`[STUDENT DASHBOARD] Found student ID: ${studentId}`);
         
         // Check enrollment
         const enrollmentCheck = await pool.query(
@@ -34,8 +39,10 @@ router.get('/dashboard', verifyToken, async (req, res) => {
           [studentId]
         );
         const enrolled = parseInt(enrollmentCheck.rows[0].count) > 0;
+        console.log(`[STUDENT DASHBOARD] Enrollment status: ${enrolled}`);
         
         if (!enrolled) {
+          console.log(`[STUDENT DASHBOARD] Student not enrolled, returning basic info`);
           return res.json({
             success: true,
             data: { student, enrolled: false }
@@ -122,9 +129,15 @@ router.get('/dashboard', verifyToken, async (req, res) => {
         streak
       }
     });
+    console.log(`[STUDENT DASHBOARD] Successfully returned dashboard data for student ID: ${studentId}`);
   } catch (error) {
-    console.error('❌ Dashboard Error:', error);
-    res.status(500).json({ error: 'Failed to load dashboard', details: error.message });
+    console.error('❌ [STUDENT DASHBOARD] Error:', error);
+    console.error('❌ [STUDENT DASHBOARD] Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to load dashboard', 
+      details: error.message,
+      hint: 'Check if lms schema exists and has data'
+    });
   }
 });router.get('/subjects', verifyToken, async (req, res) => {
     try {

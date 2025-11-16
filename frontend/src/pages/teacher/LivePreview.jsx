@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import Editor from "@monaco-editor/react";
 
 export default function LivePreview() {
   const [socket, setSocket] = useState(null);
@@ -10,45 +11,66 @@ export default function LivePreview() {
   const [connectionStatus, setConnectionStatus] = useState("connecting");
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000");
+    // Use VITE_SOCKET_URL if available, otherwise derive from VITE_API_URL
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+                      import.meta.env.VITE_API_URL?.replace('/api', '') || 
+                      "http://localhost:5000";
+    
+    console.log("🔌 Connecting to Socket.IO:", socketUrl);
+    
+    const newSocket = io(socketUrl, {
+      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
 
     newSocket.on("connect", () => {
+      console.log("✅ Socket.IO connected:", newSocket.id);
       setSocket(newSocket);
       setConnectionStatus("connected");
       setError(null);
     });
 
     newSocket.on("connect_error", (error) => {
-      setError("Failed to connect to server");
+      console.error("❌ Socket connection error:", error);
+      setError(`Failed to connect to server at ${socketUrl}`);
       setConnectionStatus("disconnected");
-      console.error("Socket connection error:", error);
     });
 
     newSocket.on("disconnect", () => {
+      console.log("🔌 Socket.IO disconnected");
       setConnectionStatus("disconnected");
     });
 
     newSocket.on("active-students-update", (data) => {
+      console.log("📊 [LIVE PREVIEW] Active students update received:", data);
+      console.log("📊 [LIVE PREVIEW] Number of students:", Object.keys(data).length);
+      
+      // Log each student's details
+      Object.entries(data).forEach(([socketId, student]) => {
+        console.log(`👤 [LIVE PREVIEW] Student ${socketId}:`, {
+          studentId: student.studentId,
+          studentName: student.studentName,
+          rollNo: student.rollNo,
+          section: student.section,
+          taskTitle: student.taskTitle
+        });
+      });
+      
       setActiveStudents(data);
     });
 
     return () => {
+      console.log("🔌 Cleaning up socket connection");
       newSocket.disconnect();
     };
   }, []);
 
   useEffect(() => {
     if (selectedStudentId && activeStudents[selectedStudentId]) {
-      // For demo: simulate code fetch
-      setSelectedCode(`// Student: ${activeStudents[selectedStudentId].studentId}
-// Task: ${activeStudents[selectedStudentId].taskId}
-// Status: ${activeStudents[selectedStudentId].status}
-// Last Updated: ${new Date().toLocaleTimeString()}
-
-// Student code preview will appear here...
-function example() {
-  console.log("This is a live code preview");
-}`);
+      const student = activeStudents[selectedStudentId];
+      setSelectedCode(student.code || `// No code available yet from ${student.studentName || 'student'}`);
     } else {
       setSelectedCode("");
     }
@@ -221,9 +243,18 @@ function example() {
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                                {s.studentId?.substring(0, 2).toUpperCase() || "??"}
+                                {s.studentName?.substring(0, 2).toUpperCase() || s.rollNo?.substring(0, 2) || "S"}
                               </div>
-                              <span className="font-bold text-slate-900">{s.studentId}</span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-slate-900 text-sm">
+                                  {s.studentName || `Student ${s.studentId}`}
+                                </span>
+                                {s.rollNo && (
+                                  <span className="text-xs text-slate-500">
+                                    {s.rollNo} {s.section ? `• ${s.section}` : ''}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <span className={`px-2 py-1 ${colors.badge} ${colors.text} rounded-lg text-xs font-bold capitalize`}>
                               {s.status}
@@ -234,7 +265,13 @@ function example() {
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                               </svg>
-                              <span>Task: <span className="font-semibold">{s.taskId}</span></span>
+                              <span>Task: <span className="font-semibold">{s.taskTitle || s.taskId}</span></span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Question: <span className="font-semibold">{s.currentQuestion || '...'}</span></span>
                             </div>
                           </div>
                         </li>
@@ -259,7 +296,7 @@ function example() {
                       <h2 className="text-xl font-bold text-slate-900">Live Code Preview</h2>
                       <p className="text-xs text-slate-600">
                         {selectedStudentId 
-                          ? `Viewing ${activeStudents[selectedStudentId]?.studentId}'s code`
+                          ? `Viewing ${activeStudents[selectedStudentId]?.studentName || activeStudents[selectedStudentId]?.studentId}'s code`
                           : "Select a student to view their code"
                         }
                       </p>
@@ -276,13 +313,24 @@ function example() {
                 </div>
               </div>
 
-              <div className="p-6 overflow-auto h-full bg-slate-900">
+              <div className="overflow-auto h-full">
                 {selectedCode ? (
-                  <pre className="text-sm text-slate-100 font-mono leading-relaxed">
-                    <code>{selectedCode}</code>
-                  </pre>
+                  <Editor
+                    height="100%"
+                    defaultLanguage="python"
+                    value={selectedCode}
+                    theme="vs-dark"
+                    options={{
+                      readOnly: true,
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      lineNumbers: 'on',
+                      scrollBeyondLastLine: false,
+                      automaticLayout: true
+                    }}
+                  />
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="flex flex-col items-center justify-center h-full text-center bg-slate-900 p-12">
                     <div className="w-24 h-24 bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl flex items-center justify-center mb-4">
                       <span className="text-5xl">🖥️</span>
                     </div>

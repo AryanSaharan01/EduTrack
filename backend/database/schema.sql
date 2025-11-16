@@ -202,3 +202,4 @@ COMMENT ON TABLE lms.submissions IS 'Student task submissions';
 COMMENT ON TABLE lms.submission_answers IS 'Student answers for each question';
 COMMENT ON TABLE lms.notifications IS 'System notifications';
 COMMENT ON TABLE lms.student_notification_read IS 'Tracks which students have read notifications';
+
