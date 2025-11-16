@@ -98,7 +98,7 @@ export default function ClassAnalytics() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-xl border border-red-200 max-w-md">
           <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
               <span className="text-4xl">⚠️</span>
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Error Loading Data</h2>
@@ -120,7 +120,7 @@ export default function ClassAnalytics() {
       <div className="px-8 py-6 space-y-6">
         
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow">
+        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-semibold mb-3">
@@ -206,13 +206,19 @@ export default function ClassAnalytics() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-slate-600 font-semibold">Loading analytics...</p>
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl animate-spin mx-auto mb-4"
+              style={{ animationDuration: '3s' }} />
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <p className="text-slate-600 font-medium mt-3">Loading analytics...</p>
           </div>
         ) : classStats ? (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 animate-slide-up">
               <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-200 hover:shadow-lg transition-shadow">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -427,6 +433,39 @@ export default function ClassAnalytics() {
         )}
 
       </div>
+    
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.6s ease-out;
+          animation-fill-mode: both;
+        }
+      `}</style>
     </div>
   );
 }

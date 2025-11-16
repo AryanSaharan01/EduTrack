@@ -85,7 +85,7 @@ export default function TeacherSetup() {
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200">
+        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 animate-fade-in">
           <div className="flex items-center justify-between mb-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-semibold mb-3">
@@ -130,7 +130,7 @@ export default function TeacherSetup() {
 
         {/* Step 1: Add Subjects */}
         {step === 1 && (
-          <div className="space-y-5">
+          <div className="space-y-5 animate-slide-up">
             
             {/* Instructions Card */}
             <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-200">
@@ -264,7 +264,7 @@ export default function TeacherSetup() {
 
         {/* Step 2: Review & Confirm */}
         {step === 2 && (
-          <div className="space-y-5">
+          <div className="space-y-5 animate-slide-up">
             
             {/* Review Instructions */}
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
@@ -351,6 +351,39 @@ export default function TeacherSetup() {
         )}
 
       </div>
+    
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.6s ease-out;
+          animation-fill-mode: both;
+        }
+      `}</style>
     </div>
   );
 }

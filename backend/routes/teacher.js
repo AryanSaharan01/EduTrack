@@ -385,6 +385,47 @@ router.get('/students/by-course-section/:courseId/:sectionId', verifyToken, auth
   }
 });
 
+// GET /api/teacher/students - Get all students enrolled under this teacher
+router.get('/students', verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { userId } = req.user;
+
+    // Get teacher ID
+    const teacherResult = await pool.query(
+      'SELECT id FROM lms.teachers WHERE user_id = $1',
+      [userId]
+    );
+
+    if (teacherResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+
+    const teacherId = teacherResult.rows[0].id;
+
+    // Get all students enrolled in any subject taught by this teacher
+    const students = await pool.query(
+      `SELECT DISTINCT s.id, s.name, s.roll_no, s.course, s.section, u.email
+       FROM lms.students s
+       JOIN lms.users u ON s.user_id = u.id
+       JOIN lms.enrollments e ON e.student_id = s.id
+       JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
+       WHERE tsa.teacher_id = $1
+       ORDER BY s.name`,
+      [teacherId]
+    );
+
+    console.log(`Found ${students.rows.length} students enrolled under teacher ${teacherId}`);
+
+    res.json({
+      success: true,
+      students: students.rows
+    });
+  } catch (error) {
+    console.error('❌ Get All Students Error:', error);
+    res.status(500).json({ error: 'Failed to load students' });
+  }
+});
+
 // POST /api/teacher/assign-subject - Assign subject to teacher with course-section and enroll students
 router.post('/assign-subject', verifyToken, authorizeTeacher, async (req, res) => {
   try {

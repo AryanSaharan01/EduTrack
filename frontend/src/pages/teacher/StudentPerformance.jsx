@@ -182,7 +182,7 @@ export default function StudentPerformance() {
               </label>
               <select
                 value={selectedStudentId || ""}
-                onChange={(e) => setSelectedStudentId(e.target.value)}
+                onChange={(e) => setSelectedStudentId(Number(e.target.value))}
                 className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-slate-900 font-medium"
               >
                 <option value="">Select a student</option>
@@ -340,8 +340,10 @@ export default function StudentPerformance() {
                             backgroundColor: '#1e293b',
                             border: 'none',
                             borderRadius: '0.75rem',
-                            color: 'white'
+                            color: '#ffffff'
                           }}
+                          labelStyle={{ color: '#ffffff' }}
+                          itemStyle={{ color: '#ffffff' }}
                         />
                         <Bar dataKey="marks" radius={[8, 8, 0, 0]}>
                           {performanceData.tasks.map((entry, index) => (
@@ -390,8 +392,10 @@ export default function StudentPerformance() {
                             backgroundColor: '#1e293b',
                             border: 'none',
                             borderRadius: '0.75rem',
-                            color: 'white'
+                            color: '#ffffff'
                           }}
+                          labelStyle={{ color: '#ffffff' }}
+                          itemStyle={{ color: '#ffffff' }}
                         />
                         <Line 
                           type="monotone" 

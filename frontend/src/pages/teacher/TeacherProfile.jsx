@@ -56,10 +56,16 @@ export default function TeacherProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-semibold">Loading profile...</p>
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl animate-spin mx-auto mb-4"
+            style={{ animationDuration: '3s' }} />
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+          <p className="text-slate-600 font-medium mt-3">Loading profile...</p>
         </div>
       </div>
     );
@@ -106,7 +112,7 @@ export default function TeacherProfile() {
       <div className="px-8 py-6 space-y-6 max-w-5xl mx-auto">
         
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow">
+        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-semibold mb-3">
@@ -131,7 +137,7 @@ export default function TeacherProfile() {
         </div>
 
         {/* Profile Card */}
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden animate-slide-up">
           {/* Profile Header with Avatar */}
           <div className="relative">
             <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
@@ -416,6 +422,39 @@ export default function TeacherProfile() {
         </div>
 
       </div>
+    
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.6s ease-out;
+          animation-fill-mode: both;
+        }
+      `}</style>
     </div>
   );
 }
