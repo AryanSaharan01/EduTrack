@@ -15,7 +15,9 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
-    "format": "prettier --write \"**/*.{js,json}\""
+    "format": "prettier --write \"**/*.{js,json}\"",
+    "setup:judge0": "node setup-judge0.js",
+    "test:judge0": "node test-judge0.js"
   },
   "dependencies": {
     "axios": "^1.7.2",

@@ -19,6 +19,11 @@ export default function StudentTaskAttempt() {
   const [showWarning, setShowWarning] = useState(false);
   const [testOutput, setTestOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [customInput, setCustomInput] = useState("");
+  const [showInputPanel, setShowInputPanel] = useState(false);
+  const [executionResults, setExecutionResults] = useState({});
   const [socket, setSocket] = useState(null);
   
   const timerRef = useRef(null);
@@ -271,17 +276,30 @@ export default function StudentTaskAttempt() {
 
   const handleSubmit = async (isAuto = false) => {
     try {
+      console.log('[SUBMIT] Preparing submission...', {
+        taskId,
+        answersCount: Object.keys(answers).length,
+        executionResultsCount: Object.keys(executionResults).length
+      });
+      
       const submission = {
         taskId: parseInt(taskId),
         answers: Object.entries(answers).map(([questionId, code]) => ({
           questionId: parseInt(questionId),
           code: code
         })),
+        executionResults: executionResults, // Judge0 results keyed by questionId
         tabSwitchCount,
         timeTaken: ((task.timeLimit || 45) * 60) - timeRemaining
       };
 
-      console.log("Submitting:", submission);
+      console.log("[SUBMIT] Submitting with execution results:", {
+        taskId: submission.taskId,
+        answersCount: submission.answers.length,
+        hasExecutionResults: Object.keys(executionResults).length > 0,
+        executionResults: executionResults
+      });
+      
       await api.post("/student/submissions", submission);
       
       exitFullscreen();
@@ -289,30 +307,169 @@ export default function StudentTaskAttempt() {
         state: { message: isAuto ? "Test auto-submitted" : "Test submitted successfully" }
       });
     } catch (err) {
-      console.error("Error submitting test:", err);
+      console.error("[SUBMIT] Error submitting test:", err);
+      console.error("[SUBMIT] Error details:", err.response?.data);
       alert("Failed to submit test. Please try again.");
     }
   };
 
   const runCode = async () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const code = answers[currentQuestion.id];
+    
+    console.log('[RUN CODE] Starting...', {
+      questionId: currentQuestion.id,
+      hasCode: !!code,
+      language: currentQuestion.programmingLanguage
+    });
+    
+    // Validate
+    if (!code || code.trim() === '') {
+      setTestOutput("❌ Error: Please write some code before running");
+      setTestResult({ type: 'error', message: 'No code' });
+      return;
+    }
+    
+    // Set loading
     setIsRunning(true);
-    setTestOutput("Running code...");
+    setTestOutput("⏳ Compiling and executing...\n\nPlease wait...");
+    setTestResult(null);
+    
+    try {
+      console.log('[RUN CODE] Sending request...');
+      
+      const response = await api.post("/tasks/run-code", {
+        code: code,
+        language: currentQuestion.programmingLanguage || "python",
+        stdin: customInput || "",
+        questionId: currentQuestion.id,
+        expectedOutput: currentQuestion.expectedOutput || null
+      });
+      
+      console.log('[RUN CODE] Response:', response.data);
+      
+      const result = response.data.result;
+      
+      // Store for submission
+      setExecutionResults(prev => ({
+        ...prev,
+        [currentQuestion.id]: {
+          output: result.output,
+          error: result.error,
+          status: result.status,
+          time: result.time,
+          memory: result.memory,
+          success: result.success,
+          testResult: result.testResult
+        }
+      }));
+      
+      // Build output
+      let outputMsg = '';
+      let type = 'success';
+      
+      if (!result.success || result.error) {
+        outputMsg = `❌ Execution Failed\n\nStatus: ${result.status}\n\n`;
+        if (result.error) outputMsg += `Error:\n${result.error}\n\n`;
+        if (result.output) outputMsg += `Output:\n${result.output}\n\n`;
+        type = 'error';
+      } else {
+        outputMsg = `✅ Success\n\nStatus: ${result.status}\n\n`;
+        if (customInput) outputMsg += `Input:\n${customInput}\n\n`;
+        outputMsg += `Output:\n${result.output || '(no output)'}\n\n`;
+        
+        if (result.testResult) {
+          outputMsg += `${'═'.repeat(40)}\n🧪 TEST RESULTS\n${'═'.repeat(40)}\n\n`;
+          if (result.testResult.passed) {
+            outputMsg += `✅ PASSED\n\n`;
+            type = 'success';
+          } else {
+            outputMsg += `❌ FAILED\n\nYour:\n${result.testResult.actualOutput}\n\nExpected:\n${result.testResult.expectedOutput}\n\n`;
+            type = 'warning';
+          }
+        }
+        
+        outputMsg += `${'─'.repeat(40)}\n📊 Metrics\n${'─'.repeat(40)}\n`;
+        outputMsg += `⏱️  ${result.time ? result.time + 's' : 'N/A'}\n`;
+        outputMsg += `💾 ${result.memory ? (result.memory / 1024).toFixed(2) + ' MB' : 'N/A'}\n`;
+      }
+      
+      setTestOutput(outputMsg);
+      setTestResult({ type, message: type === 'error' ? 'Failed' : type === 'warning' ? 'Test failed' : 'Success' });
+      
+    } catch (error) {
+      console.error('[RUN CODE] Error:', error);
+      const msg = error.response?.data?.message || error.message || 'Unknown error';
+      setTestOutput(`❌ ERROR\n\n${msg}\n\nCheck:\n• Code syntax\n• Judge0 API\n• Backend server`);
+      setTestResult({ type: 'error', message: 'Error' });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const testCode = async () => {
+    setIsTesting(true);
+    setTestOutput("⏳ Testing your code against expected output...");
+    setTestResult(null);
     
     const currentQuestion = questions[currentQuestionIndex];
     const code = answers[currentQuestion.id];
     
+    if (!code || code.trim() === '') {
+      setTestOutput("❌ Error: No code to test");
+      setIsTesting(false);
+      return;
+    }
+    
+    if (!currentQuestion.expectedOutput) {
+      setTestOutput("⚠️ No expected output defined for this question");
+      setIsTesting(false);
+      return;
+    }
+    
     try {
-      const response = await api.post("/student/run-code", {
+      setTestOutput("⏳ Running test cases...");
+      
+      const response = await api.post("/tasks/test-code", {
         code,
         language: currentQuestion.programmingLanguage || "python",
-        expectedOutput: currentQuestion.expectedOutput
+        expectedOutput: currentQuestion.expectedOutput,
+        stdin: customInput || ""
       });
       
-      setTestOutput(response.data.output || "Code executed successfully");
+      if (response.data.success && response.data.result) {
+        const result = response.data.result;
+        
+        if (result.passed) {
+          let outputMsg = `✅ All Test Cases Passed!\n\n`;
+          if (customInput) {
+            outputMsg += `Input:\n${customInput}\n\n`;
+          }
+          outputMsg += `Your Output:\n${result.actualOutput}\n\n`;
+          outputMsg += `Expected Output:\n${result.expectedOutput}\n\n`;
+          outputMsg += `Execution Time: ${result.time || 'N/A'}s\n`;
+          outputMsg += `Memory: ${result.memory ? (result.memory / 1024).toFixed(2) + ' MB' : 'N/A'}`;
+          
+          setTestOutput(outputMsg);
+          setTestResult({ type: 'success', message: 'All test cases passed!' });
+        } else if (!result.success) {
+          setTestOutput(`❌ ${result.error || 'Execution Error'}\n\n${result.output}\n\n${result.message}`);
+          setTestResult({ type: 'error', message: result.error || 'Execution failed' });
+        } else {
+          setTestOutput(`❌ Test Failed\n\nYour Output:\n${result.actualOutput}\n\nExpected Output:\n${result.expectedOutput}\n\n${result.message}`);
+          setTestResult({ type: 'warning', message: 'Output does not match expected result' });
+        }
+      } else {
+        setTestOutput("❌ Failed to test code");
+        setTestResult({ type: 'error', message: 'No response from server' });
+      }
     } catch (err) {
-      setTestOutput(err.response?.data?.error || "Error running code");
+      console.error("Error testing code:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Error testing code";
+      setTestOutput(`❌ Error: ${errorMsg}\n\nPlease check your code and try again.\n\nTip: Make sure Judge0 API is configured correctly in backend.`);
+      setTestResult({ type: 'error', message: errorMsg });
     } finally {
-      setIsRunning(false);
+      setIsTesting(false);
     }
   };
 
@@ -475,28 +632,59 @@ export default function StudentTaskAttempt() {
               <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-mono">
                 {currentQuestion.programmingLanguage || "python"}
               </span>
+              <button
+                onClick={() => setShowInputPanel(!showInputPanel)}
+                className="text-slate-400 hover:text-white text-xs flex items-center gap-1 transition-colors"
+                title="Toggle custom input"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                Custom Input
+              </button>
             </div>
             
-            <button
-              onClick={runCode}
-              disabled={isRunning}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold px-4 py-2 rounded-lg transition-all"
-            >
-              {isRunning ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Running...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  </svg>
-                  Run Code
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={runCode}
+                disabled={isRunning}
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold px-4 py-2 rounded-lg transition-all"
+              >
+                {isRunning ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    </svg>
+                    {currentQuestion.expectedOutput ? 'Run & Test Code' : 'Run Code'}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Custom Input Panel */}
+          {showInputPanel && (
+            <div className="bg-slate-800 border-b border-slate-700 p-3">
+              <label className="text-slate-400 text-xs font-semibold block mb-2">
+                Custom Input (stdin):
+              </label>
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Enter input data here (one per line)..."
+                className="w-full bg-slate-700 text-white px-3 py-2 rounded text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                rows="3"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                💡 Tip: Enter input values that your program will read from stdin
+              </p>
+            </div>
+          )}
 
           {/* Monaco Editor */}
           <div className="flex-1">
@@ -522,15 +710,58 @@ export default function StudentTaskAttempt() {
             />
           </div>
 
-          {/* Output Panel */}
-          {testOutput && (
-            <div className="h-48 bg-slate-800 border-t border-slate-700 p-4 overflow-y-auto">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-slate-400 text-sm font-semibold">Output:</span>
+          {/* Output Panel - ALWAYS VISIBLE */}
+          <div className="h-64 bg-slate-800 border-t border-slate-700 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-sm font-semibold">Output Console:</span>
+                {testResult && (
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    testResult.type === 'success' 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : testResult.type === 'warning'
+                      ? 'bg-yellow-500/20 text-yellow-400'
+                      : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {testResult.type === 'success' ? '✓ Success' : testResult.type === 'warning' ? '⚠ Warning' : '✗ Error'}
+                  </span>
+                )}
               </div>
-              <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">{testOutput}</pre>
+              <button
+                onClick={() => {
+                  setTestOutput("");
+                  setTestResult(null);
+                }}
+                className="text-slate-400 hover:text-white transition-colors"
+                title="Clear output"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          )}
+            <div className="flex-1 p-4 overflow-y-auto bg-slate-900">
+              {testOutput ? (
+                <pre className={`text-sm font-mono whitespace-pre-wrap ${
+                  testResult?.type === 'success' 
+                    ? 'text-green-400' 
+                    : testResult?.type === 'warning'
+                    ? 'text-yellow-400'
+                    : testResult?.type === 'error'
+                    ? 'text-red-400'
+                    : 'text-slate-300'
+                }`}>{testOutput}</pre>
+              ) : (
+                <div className="text-center text-slate-500 py-8">
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-sm">Click "Run Code" to see output here</p>
+                  <p className="text-xs mt-1 text-slate-600">Your code execution results will appear in this panel</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
