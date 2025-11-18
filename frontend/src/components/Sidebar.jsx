@@ -129,22 +129,22 @@ const Sidebar = ({ role }) => {
         top-16
         transition-all 
         duration-300
-        h-screen
-        max-h-[calc(100vh-4rem)]
+        h-[calc(100vh-4rem)]
         flex
         flex-col
+        overflow-hidden
       `}
     >
       {/* Toggle Button */}
       <div className="flex-shrink-0 border-b border-slate-100 hidden md:block">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full p-4 text-left hover:bg-slate-50 transition-all focus:outline-none group"
+          className="w-full p-3 text-left hover:bg-slate-50 transition-all focus:outline-none group"
           aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-              <span className="text-white text-sm font-bold">
+            <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span className="text-white text-xs font-bold">
                 {isOpen ? "◀" : "▶"}
               </span>
             </div>
@@ -158,8 +158,8 @@ const Sidebar = ({ role }) => {
       </div>
 
       {/* Navigation - Scrollable */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <nav className="space-y-1 p-3" role="navigation">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-2">
+        <nav className="space-y-0.5 px-2" role="navigation">
         {menu.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -171,31 +171,31 @@ const Sidebar = ({ role }) => {
                 relative
                 flex 
                 items-center
-                gap-3
-                px-3 
-                py-3
-                rounded-xl
+                gap-2.5
+                px-2.5 
+                py-2.5
+                rounded-lg
                 transition-all
                 ${isActive 
-                  ? `bg-gradient-to-r ${item.gradient} text-white shadow-md` 
+                  ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg shadow-${item.gradient.split(' ')[1]}/20` 
                   : "text-slate-600 hover:bg-slate-50"
                 }
                 ${!isOpen && "justify-center"}
               `}
               title={!isOpen ? item.label : undefined}
             >
-              <span className="text-xl flex-shrink-0">
+              <span className="text-lg flex-shrink-0">
                 {item.icon}
               </span>
 
               {isOpen && (
-                <span className={`text-sm font-medium ${isActive ? "text-white" : "text-slate-700"}`}>
+                <span className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-slate-700"}`}>
                   {item.label}
                 </span>
               )}
 
               {isOpen && isActive && (
-                <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full" />
+                <div className="ml-auto w-1 h-1 bg-white rounded-full" />
               )}
             </Link>
           );
@@ -205,7 +205,7 @@ const Sidebar = ({ role }) => {
 
       {/* Logout & Status - Fixed at bottom */}
       <div className="flex-shrink-0 border-t border-slate-100 bg-white">
-        <div className="p-3 space-y-3">
+        <div className="p-2 space-y-2">
           {/* Logout */}
           <button
             onClick={handleLogout}
@@ -213,10 +213,10 @@ const Sidebar = ({ role }) => {
               group
               flex 
               items-center
-              gap-3
-              px-3 
-              py-3
-              rounded-xl
+              gap-2.5
+              px-2.5 
+              py-2.5
+              rounded-lg
               transition-all
               text-red-600
               hover:bg-red-50
@@ -225,7 +225,7 @@ const Sidebar = ({ role }) => {
             `}
             title={!isOpen ? "Logout" : undefined}
           >
-            <span className="text-xl flex-shrink-0">🚪</span>
+            <span className="text-lg flex-shrink-0">🚪</span>
             {isOpen && (
               <span className="text-sm font-medium">Logout</span>
             )}
@@ -233,20 +233,20 @@ const Sidebar = ({ role }) => {
 
           {/* Bottom Status - Expanded Only */}
           {isOpen && (
-            <div className="bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl p-3 text-white">
-              <div className="flex items-center gap-2 mb-1">
+            <div className="bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg p-2.5 text-white">
+              <div className="flex items-center gap-2 mb-0.5">
                 <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
                 <span className="text-xs font-semibold">Online</span>
               </div>
-              <div className="text-xs opacity-90">EduTrack v1.0</div>
+              <div className="text-[10px] opacity-90">EduTrack v1.0</div>
             </div>
           )}
 
           {/* Collapsed Status Dot */}
           {!isOpen && (
             <div className="flex justify-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
               </div>
             </div>
           )}

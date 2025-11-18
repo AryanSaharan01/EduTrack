@@ -165,6 +165,51 @@ router.get("/subjects", verifyToken, authorizeTeacher, async (req, res) => {
   }
 });
 
+// GET /api/teacher/students - Get all students enrolled under this teacher
+router.get("/students", verifyToken, authorizeTeacher, async (req, res) => {
+  try {
+    const { userId } = req.user;
+
+    // Get teacher ID first
+    const teacherResult = await pool.query(
+      "SELECT id FROM lms.teachers WHERE user_id = $1",
+      [userId]
+    );
+
+    if (teacherResult.rows.length === 0) {
+      return res.status(404).json({ error: "Teacher not found" });
+    }
+
+    const teacherId = teacherResult.rows[0].id;
+
+    // Get all students enrolled under this teacher's assignments
+    const students = await pool.query(
+      `SELECT DISTINCT 
+         s.id, 
+         s.name, 
+         s.roll_no, 
+         s.course, 
+         s.section,
+         u.email
+       FROM lms.students s
+       JOIN lms.users u ON s.user_id = u.id
+       JOIN lms.enrollments e ON s.id = e.student_id
+       JOIN lms.teacher_subject_assignments tsa ON e.teacher_subject_assignment_id = tsa.id
+       WHERE tsa.teacher_id = $1
+       ORDER BY s.name`,
+      [teacherId]
+    );
+
+    res.json({
+      success: true,
+      students: students.rows
+    });
+  } catch (error) {
+    console.error("❌ Teacher Students Error:", error);
+    res.status(500).json({ error: "Failed to load students" });
+  }
+});
+
 // GET /api/teacher/my-subjects - Get subjects assigned to this teacher
 router.get("/my-subjects", verifyToken, authorizeTeacher, async (req, res) => {
   try {
