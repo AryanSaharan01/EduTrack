@@ -191,7 +191,7 @@ export default function LivePreview() {
           
           {/* Active Students List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden h-[calc(100vh-28rem)]">
+            <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden h-[calc(100vh-8rem)]">
               <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 sticky top-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export default function LivePreview() {
 
           {/* Code Preview */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden h-[calc(100vh-28rem)]">
+            <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden h-[calc(100vh-8rem)]">
               <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 sticky top-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
