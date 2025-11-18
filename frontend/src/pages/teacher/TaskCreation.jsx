@@ -13,7 +13,7 @@ export default function TaskCreation() {
     const [courseId, setCourseId] = useState("");
     const [sectionId, setSectionId] = useState("");
     const [questions, setQuestions] = useState([
-        { text: "", language: "python", expectedOutput: "", marks: 25 }
+        { text: "", language: "python", expectedOutput: "", marks: 5 }
     ]);
     const [subjects, setSubjects] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -95,7 +95,7 @@ export default function TaskCreation() {
             text: "",
             language: "python",
             expectedOutput: "",
-            marks: 25
+            marks: 5
         }
     ]);
 
@@ -464,7 +464,7 @@ export default function TaskCreation() {
                                                     value={q.marks}
                                                     onChange={e => updateQuestion(i, "marks", Number(e.target.value))}
                                                     className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 transition-all text-slate-900 font-medium"
-                                                    placeholder="25"
+                                                    placeholder="5"
                                                     required
                                                 />
                                             </div>
