@@ -1,7 +1,7 @@
 const express = require("express");
-const cors = require("cors");
 const http = require("http");
-const socketIO = require("socket.io");
+const cors = require("cors");
+const { Server } = require("socket.io");
 const dotenv = require("dotenv");
 const pool = require("./config/database");
 
@@ -17,7 +17,7 @@ const performanceRoutes = require("./routes/performance");
 
 // App initialization
 const app = express();
-const server = http.createServer(app);
+const PORT = process.env.PORT || 5000;
 
 // CORS Configuration - Allow all origins in development
 const corsOptions = {
@@ -47,7 +47,8 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.warn(`⚠️  CORS: Blocked origin: ${origin}`);
-      callback(null, true); // Still allow in development
+      // Still allow in development-like scenarios; tighten later if needed
+      callback(null, true);
     }
   },
   credentials: true,
@@ -56,8 +57,42 @@ const corsOptions = {
   exposedHeaders: ['Content-Length', 'X-Request-Id']
 };
 
-const io = socketIO(server, {
-  cors: corsOptions
+const server = http.createServer(app);
+
+// Socket.IO server with explicit path and aligned CORS
+const io = new Server(server, {
+  path: "/socket.io", // important: ensures Express doesn't handle this path
+  cors: {
+    origin: function (origin, callback) {
+      // Mirror the HTTP CORS behavior for Socket.IO
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ [SOCKET CORS] Allowing origin: ${origin}`);
+        return callback(null, true);
+      }
+
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        process.env.CLIENT_ORIGIN,
+        'http://localhost:5173',
+        'http://127.0.0.1:5173'
+      ];
+
+      const isLocalNetwork = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?/.test(origin);
+
+      if (allowedOrigins.includes(origin) || isLocalNetwork) {
+        callback(null, true);
+      } else {
+        console.warn(`⚠️ [SOCKET CORS] Blocked origin: ${origin}`);
+        callback(null, true); // relaxed; you can tighten later
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
 
 // Middleware
@@ -68,15 +103,22 @@ app.use(express.urlencoded({ extended: true }));
 // Enhanced logging middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'no-origin'}`);
+  console.log(
+    `[${timestamp}] ${req.method} ${req.path} - Origin: ${
+      req.headers.origin || 'no-origin'
+    }`
+  );
   
   // Log student route requests in detail
   if (req.path.includes('/student')) {
     console.log(`  → Student route accessed`);
-    console.log(`  → Headers:`, JSON.stringify({
-      authorization: req.headers.authorization ? 'present' : 'missing',
-      origin: req.headers.origin
-    }));
+    console.log(
+      `  → Headers:`,
+      JSON.stringify({
+        authorization: req.headers.authorization ? 'present' : 'missing',
+        origin: req.headers.origin
+      })
+    );
   }
   
   next();
@@ -170,7 +212,7 @@ io.on("connection", (socket) => {
         timestamp: new Date().toISOString()
       };
       
-      console.log(`� [SOCKET] Stored student data:`, {
+      console.log(`🧠 [SOCKET] Stored student data:`, {
         socketId: socket.id,
         studentId: data.studentId,
         studentName,
@@ -179,7 +221,7 @@ io.on("connection", (socket) => {
         taskTitle
       });
       
-      console.log(`�📡 [SOCKET] Broadcasting active students (${Object.keys(global.activeStudents).length} total)`);
+      console.log(`📡 [SOCKET] Broadcasting active students (${Object.keys(global.activeStudents).length} total)`);
       io.emit("active-students-update", global.activeStudents);
     } catch (error) {
       console.error("❌ [SOCKET] Error handling student update:", error);
@@ -190,7 +232,9 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`🔌 [SOCKET] Client disconnected: ${socket.id}`);
     delete global.activeStudents[socket.id];
-    console.log(`📡 [SOCKET] Broadcasting active students (${Object.keys(global.activeStudents).length} remaining)`);
+    console.log(
+      `📡 [SOCKET] Broadcasting active students (${Object.keys(global.activeStudents).length} remaining)`
+    );
     io.emit("active-students-update", global.activeStudents);
   });
 
@@ -227,52 +271,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Server startup
-const PORT = process.env.PORT || 5000;
-const HOST = '0.0.0.0'; // Listen on all network interfaces
-
-// Get network IP addresses
-const os = require('os');
-function getNetworkIPs() {
-  const interfaces = os.networkInterfaces();
-  const ips = [];
-  
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      // Skip internal (localhost) and non-IPv4 addresses
-      if (iface.family === 'IPv4' && !iface.internal) {
-        ips.push(iface.address);
-      }
-    }
-  }
-  return ips;
-}
-
-server.listen(PORT, HOST, () => {
-  const networkIPs = getNetworkIPs();
-  
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`🚀 SERVER STARTED SUCCESSFULLY`);
-  console.log(`${'='.repeat(60)}\n`);
-  
-  console.log(`📍 Access URLs:`);
-  console.log(`   Local:      http://localhost:${PORT}`);
-  console.log(`   Local Alt:  http://127.0.0.1:${PORT}`);
-  
-  if (networkIPs.length > 0) {
-    networkIPs.forEach(ip => {
-      console.log(`   Network:    http://${ip}:${PORT}`);
-    });
-    console.log(`\n💡 Share network URL with other devices on same WiFi\n`);
-  } else {
-    console.log(`   Network:    Not available (check WiFi connection)\n`);
-  }
-  
-  console.log(`📱 Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}`);
-  console.log(`📧 SMTP:     ${process.env.SMTP_USER}`);
-  console.log(`🗄️  Database: NeonDB (Cloud PostgreSQL)`);
-  console.log(`📂 Schema:   ${process.env.DB_SCHEMA || 'lms'}`);
-  console.log(`\n${'='.repeat(60)}\n`);
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 // Handle uncaught exceptions
