@@ -19,30 +19,26 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccessOtp(null);
 
     if (!email) {
       setError("Please enter a valid email.");
       return;
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, role: "student" }),
-    });
+    // Use the sendOTP function from AuthContext
+    const result = await sendOTP(email, role);
 
-    if (!response.ok) {
-      setError("Failed to send OTP. Please try again.");
-      return;
-    }
-
-    const data = await response.json();
-
-    if (data.success) {
-      setSuccessOtp(data.otp);
+    if (result.success) {
+      // Show OTP in dev mode
+      if (result.otp) {
+        setSuccessOtp(result.otp);
+        console.log('🔑 Dev OTP:', result.otp);
+      }
+      // Navigate to OTP verification page
       navigate("/auth/verify-otp", { state: { email, role } });
     } else {
-      setError(data.message || "Failed to send OTP. Please try again.");
+      setError(result.error || result.message || "Failed to send OTP. Please try again.");
     }
   };
 

@@ -1,101 +1,128 @@
-import React, { createContext, useState, useCallback } from "react";
-import api from "../utils/api";
+import React, { createContext, useState, useEffect } from 'react';
 
 export const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
-    const [user, setUser] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem("user") || "null");
-        } catch (error) {
-            console.error("Failed to parse user from localStorage:", error);
-            return null;
-        }
-    });
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem('token'));
 
-    const [token, setToken] = useState(() => localStorage.getItem("token"));
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  // Check if user is logged in on mount
+  useEffect(() => {
+    if (token) {
+      // Decode token and set user (you can add JWT decode here)
+      const userData = JSON.parse(localStorage.getItem('user') || 'null');
+      setUser(userData);
+    }
+  }, [token]);
 
-    const sendOTP = useCallback(async (email, role) => {
-        setLoading(true);
-        setError(null);
+  // Send OTP
+  const sendOTP = async (email, role) => {
+    setLoading(true);
+    try {
+      console.log('📤 Sending OTP to:', email, 'as', role);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ email, role })
+      });
 
-        try {
-            const res = await api.post("/auth/send-otp", { email, role });
-            return { 
-                success: res.data.success, 
-                otp: res.data.otp 
-            };
-        } catch (err) {
-            setError(err.response?.data?.error || "Failed to send OTP");
-            return { 
-                success: false, 
-                error: err.response?.data?.error || "Failed to send OTP" 
-            };
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+      const data = await response.json();
+      console.log('📨 Send OTP Response:', data);
 
-    const verifyOTP = useCallback(async (email, otp, role) => {
-        setLoading(true);
-        setError(null);
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || data.message || 'Failed to send OTP'
+        };
+      }
 
-        try {
-            const res = await api.post("/auth/verify-otp", { email, otp, role });
-            const { token, user } = res.data;
+      return {
+        success: true,
+        message: data.message,
+        otp: data.otp // Only in dev
+      };
 
-            // Store auth data
-            localStorage.setItem("token", token);
-            localStorage.setItem("user", JSON.stringify(user));
-            
-            // Update state
-            setToken(token);
-            setUser(user);
+    } catch (error) {
+      console.error('❌ Send OTP Error:', error);
+      return {
+        success: false,
+        error: error.message || 'Network error. Please try again.'
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            return { success: true, user };
-        } catch (err) {
-            const errorMessage = err.response?.data?.error || "Failed to verify OTP";
-            setError(errorMessage);
-            return { 
-                success: false, 
-                error: errorMessage 
-            };
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+  // Verify OTP
+  const verifyOTP = async (email, otp, role) => {
+    setLoading(true);
+    try {
+      console.log('🔐 Verifying OTP for:', email);
 
-    const logout = useCallback(() => {
-        try {
-            // Clear local storage
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            
-            // Reset state
-            setToken(null);
-            setUser(null);
-            setError(null);
-        } catch (err) {
-            console.error("Logout failed:", err);
-            setError("Failed to logout properly");
-        }
-    }, []);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ email, otp, role })
+      });
 
-    return (
-        <AuthContext.Provider 
-            value={{ 
-                user, 
-                token, 
-                loading, 
-                error,
-                sendOTP, 
-                verifyOTP, 
-                logout 
-            }}
-        >
-            {children}
-        </AuthContext.Provider>
-    );
-}
+      const data = await response.json();
+      console.log('✅ Verify OTP Response:', data);
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Invalid OTP'
+        };
+      }
+
+      // Save token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setToken(data.token);
+      setUser(data.user);
+
+      return {
+        success: true,
+        user: data.user,
+        isFirstTime: !data.user.profile // First time if no profile
+      };
+
+    } catch (error) {
+      console.error('❌ Verify OTP Error:', error);
+      return {
+        success: false,
+        error: error.message || 'Network error. Please try again.'
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+  };
+
+  const value = {
+    user,
+    loading,
+    sendOTP,
+    verifyOTP,
+    logout
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
