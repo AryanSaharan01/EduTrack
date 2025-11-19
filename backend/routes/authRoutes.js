@@ -11,10 +11,10 @@ function generateOTP() {
 
 // POST /api/auth/send-otp
 router.post('/send-otp', async (req, res) => {
-    console.log('📧 Send OTP Request received:', req.body);
-    
     try {
         const { email, role } = req.body;
+
+        console.log('📧 Send OTP Request received:', { email, role });
 
         if (!email || !role) {
             return res.status(400).json({ 
@@ -65,17 +65,18 @@ router.post('/send-otp', async (req, res) => {
         await sendOTPEmail(email, otp);
         console.log('✅ OTP email sent to:', email);
 
-        res.json({ 
-            success: true, 
+        // Instead of 204 with no body, send 200 with JSON:
+        return res.status(200).json({
+            success: true,
             message: 'OTP sent successfully',
             otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only in dev
         });
 
     } catch (error) {
-        console.error('❌ Send OTP Error:', error);
-        res.status(500).json({ 
-            error: 'Failed to send OTP. Please try again.',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        console.error('❌ Error in /send-otp:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to send OTP',
         });
     }
 });

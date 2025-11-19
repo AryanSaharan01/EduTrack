@@ -25,12 +25,24 @@ export default function LoginPage() {
       return;
     }
 
-    const res = await sendOTP(email, role);
-    if (res.success) {
-      setSuccessOtp(res.otp);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, role: "student" }),
+    });
+
+    if (!response.ok) {
+      setError("Failed to send OTP. Please try again.");
+      return;
+    }
+
+    const data = await response.json();
+
+    if (data.success) {
+      setSuccessOtp(data.otp);
       navigate("/auth/verify-otp", { state: { email, role } });
     } else {
-      setError("Failed to send OTP. Please try again.");
+      setError(data.message || "Failed to send OTP. Please try again.");
     }
   };
 
