@@ -26,28 +26,32 @@ const corsOptions = {
     if (!origin) {
       return callback(null, true);
     }
-    
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ CORS: Allowing origin: ${origin}`);
-      return callback(null, true);
-    }
-    
-    // In production, check against allowed origins
+
     const allowedOrigins = [
       process.env.FRONTEND_URL,
+      process.env.CLIENT_ORIGIN,
+      'https://edutrackpro.vercel.app', // your Vercel frontend
       'http://localhost:5173',
       'http://127.0.0.1:5173'
     ];
-    
+
+    // In development, allow all origins
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ CORS: Allowing origin (dev mode): ${origin}`);
+      return callback(null, true);
+    }
+
     // Also allow any local network IPs
     const isLocalNetwork = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?/.test(origin);
-    
+
     if (allowedOrigins.includes(origin) || isLocalNetwork) {
+      console.log(`✅ CORS: Allowed origin: ${origin}`);
       callback(null, true);
     } else {
-      console.warn(`⚠️  CORS: Blocked origin: ${origin}`);
-      // Still allow in development-like scenarios; tighten later if needed
+      console.warn(`⚠️ CORS: Blocked origin: ${origin}`);
+      // If you want to HARD BLOCK unknown origins in prod, use:
+      // return callback(new Error('Not allowed by CORS'));
+      // For now, still allow to keep behavior similar to before:
       callback(null, true);
     }
   },

@@ -35,24 +35,37 @@ router.post('/send-otp', async (req, res) => {
 
         console.log('Generated OTP:', otp, 'for', email);
 
-        // Check if user exists
+        // Check if user exists by email ONLY (because email is UNIQUE in schema)
         const userCheck = await pool.query(
-            'SELECT id FROM lms.users WHERE email = $1 AND role = $2',
-            [email, role]
+            'SELECT id, role FROM lms.users WHERE email = $1',
+            [email]
         );
 
         let userId;
 
         if (userCheck.rows.length > 0) {
-            // Update existing user
-            userId = userCheck.rows[0].id;
+            const existingUser = userCheck.rows[0];
+
+            // If role doesn't match, block with clear error
+            if (existingUser.role !== role) {
+                console.warn(
+                    `⚠️ Role mismatch for email ${email}. Existing role: ${existingUser.role}, requested: ${role}`
+                );
+                return res.status(400).json({
+                    success: false,
+                    error: `This email is already registered as ${existingUser.role}. Please use the ${existingUser.role} login.`
+                });
+            }
+
+            // Update existing user OTP
+            userId = existingUser.id;
             await pool.query(
                 'UPDATE lms.users SET otp_code = $1, otp_expires_at = $2, updated_at = NOW() WHERE id = $3',
                 [otp, otpExpires, userId]
             );
-            console.log('✅ Updated existing user:', userId);
+            console.log('✅ Updated existing user OTP:', userId);
         } else {
-            // Create new user
+            // Create new user with given role
             const newUser = await pool.query(
                 'INSERT INTO lms.users (email, role, otp_code, otp_expires_at) VALUES ($1, $2, $3, $4) RETURNING id',
                 [email, role, otp, otpExpires]
@@ -65,7 +78,6 @@ router.post('/send-otp', async (req, res) => {
         await sendOTPEmail(email, otp);
         console.log('✅ OTP email sent to:', email);
 
-        // Instead of 204 with no body, send 200 with JSON:
         return res.status(200).json({
             success: true,
             message: 'OTP sent successfully',
@@ -77,6 +89,7 @@ router.post('/send-otp', async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to send OTP',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
@@ -94,7 +107,7 @@ router.post('/verify-otp', async (req, res) => {
             });
         }
 
-        // Verify OTP
+        // Verify OTP (by email + role, which is okay now)
         const result = await pool.query(
             `SELECT id, email, role, otp_code, otp_expires_at 
              FROM lms.users 
