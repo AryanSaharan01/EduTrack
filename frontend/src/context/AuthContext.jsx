@@ -20,20 +20,33 @@ export const AuthProvider = ({ children }) => {
   const sendOTP = async (email, role) => {
     setLoading(true);
     try {
-      console.log('📤 Sending OTP to:', email, 'as', role);
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const endpoint = `${apiUrl}/auth/send-otp`;
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/send-otp`, {
+      console.log('📤 Sending OTP...');
+      console.log('  Email:', email);
+      console.log('  Role:', role);
+      console.log('  API URL:', apiUrl);
+      console.log('  Full endpoint:', endpoint);
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        credentials: 'include', // Important for CORS with credentials
         body: JSON.stringify({ email, role })
       });
 
+      console.log('📨 Response status:', response.status);
+      console.log('📨 Response headers:', Object.fromEntries(response.headers.entries()));
+
       const data = await response.json();
-      console.log('📨 Send OTP Response:', data);
+      console.log('📨 Response data:', data);
 
       if (!response.ok) {
+        console.error('❌ Request failed:', data);
         return {
           success: false,
           error: data.error || data.message || 'Failed to send OTP'
@@ -48,6 +61,10 @@ export const AuthProvider = ({ children }) => {
 
     } catch (error) {
       console.error('❌ Send OTP Error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       return {
         success: false,
         error: error.message || 'Network error. Please try again.'

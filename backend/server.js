@@ -30,10 +30,10 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       process.env.CLIENT_ORIGIN,
-      'https://edutrackpro.vercel.app', // your Vercel frontend
+      'https://edutrackpro.vercel.app',
       'http://localhost:5173',
       'http://127.0.0.1:5173'
-    ];
+    ].filter(Boolean); // Remove undefined values
 
     // In development, allow all origins
     if (process.env.NODE_ENV === 'development') {
@@ -48,17 +48,24 @@ const corsOptions = {
       console.log(`✅ CORS: Allowed origin: ${origin}`);
       callback(null, true);
     } else {
-      console.warn(`⚠️ CORS: Blocked origin: ${origin}`);
-      // If you want to HARD BLOCK unknown origins in prod, use:
-      // return callback(new Error('Not allowed by CORS'));
-      // For now, still allow to keep behavior similar to before:
+      console.warn(`⚠️ CORS: Unknown origin (allowing anyway): ${origin}`);
+      // For now, allow all origins (you can tighten this later)
       callback(null, true);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Length', 'X-Request-Id']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400, // 24 hours - cache preflight response
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 const server = http.createServer(app);
@@ -104,6 +111,9 @@ const io = new Server(server, {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Explicitly handle OPTIONS requests (CORS preflight)
+app.options('*', cors(corsOptions));
 
 // Enhanced logging middleware
 app.use((req, res, next) => {
