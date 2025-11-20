@@ -24,18 +24,25 @@ const LANGUAGE_IDS = {
 
 class Judge0Service {
   constructor() {
-    // Use sample API key for now - user will replace with their own
-    this.apiKey = process.env.JUDGE0_API_KEY || 'd0a9fd974dmshde0fad821e57c4fp14103bjsneb6131a15123';
-    this.apiHost = process.env.JUDGE0_API_HOST || 'judge0-ce.p.rapidapi.com';
-    this.baseURL = `https://${this.apiHost}`;
+    // Get API configuration from environment variables
+    this.apiKey = process.env.JUDGE0_API_KEY;
+    this.apiUrl = process.env.JUDGE0_API_URL || 'https://judge0-ce.p.rapidapi.com';
+    
+    // Extract host from URL for RapidAPI header
+    this.apiHost = this.apiUrl.replace('https://', '').replace('http://', '');
+    
+    if (!this.apiKey) {
+      console.warn('[JUDGE0] Warning: JUDGE0_API_KEY not set in environment variables');
+    }
     
     this.axiosInstance = axios.create({
-      baseURL: this.baseURL,
+      baseURL: this.apiUrl,
       headers: {
         'Content-Type': 'application/json',
         'X-RapidAPI-Key': this.apiKey,
         'X-RapidAPI-Host': this.apiHost
-      }
+      },
+      timeout: 30000 // 30 second timeout
     });
   }
 

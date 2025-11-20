@@ -5,22 +5,15 @@ require("dotenv").config();
 const emailConfig = {
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: parseInt(process.env.SMTP_PORT || "587", 10),
-  secure: process.env.SMTP_PORT === "465", // true for 465, false for 587
+  secure: process.env.SMTP_SECURE === "true", // false for port 587, true for port 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
   },
   tls: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false // Accept self-signed certificates
   }
 };
-
-console.log('📧 Email Config Loaded:', {
-  host: emailConfig.host,
-  port: emailConfig.port,
-  secure: emailConfig.secure,
-  user: emailConfig.auth.user ? '✅ Set' : '❌ Missing'
-});
 
 // Create transporter
 const transporter = nodemailer.createTransport(emailConfig);
@@ -29,38 +22,30 @@ const transporter = nodemailer.createTransport(emailConfig);
  * Verify email configuration
  * @returns {Promise<boolean>}
  */
-async function verifyEmailConfig() {
+async function verifyConnection() {
   try {
     await transporter.verify();
-    console.log("✅ Email server is ready to send messages");
+    console.log("Email service is ready");
     return true;
   } catch (error) {
-    console.error("❌ Email server verification failed:", error.message);
+    console.error("Email service error:", error);
     return false;
   }
 }
 
 /**
- * Send OTP email to user
- * @param {string} email - Recipient email address
- * @param {string} otp - OTP code to send
- * @returns {Promise<Object>}
+ * Send OTP email
+ * @param {string} to - Recipient email
+ * @param {string} otp - One-time password
+ * @returns {Promise<void>}
  */
-async function sendOTPEmail(email, otp) {
+async function sendOTPEmail(to, otp) {
   try {
-    console.log('📧 Attempting to send OTP email to:', email);
-    console.log('🔧 SMTP Config:', {
-      host: emailConfig.host,
-      port: emailConfig.port,
-      secure: emailConfig.secure,
-      user: emailConfig.auth.user ? '✅ Set' : '❌ Missing',
-      pass: emailConfig.auth.pass ? '✅ Set' : '❌ Missing'
-    });
-
-    const mailOptions = {
-      from: `"EduTrackPro" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: 'Your OTP Code - EduTrackPro',
+    const info = await transporter.sendMail({
+      from: `"EduTrack Pro LMS - Security Team" <${process.env.SMTP_USER}>`,
+      to,
+      subject: "Your Verification Code for EduTrack Pro LMS",
+      text: `Your verification code is ${otp}. This code will expire in 2 minutes. If you didn't request this code, please ignore this email.`,
       html: `
         <!DOCTYPE html>
         <html lang="en">
@@ -245,64 +230,17 @@ async function sendOTPEmail(email, otp) {
         </body>
         </html>
       `
-    };
+    });
     
-    const info = await transporter.sendMail(mailOptions);
-    
-    console.log('✅ Email sent successfully to:', email);
-    console.log('📬 Message ID:', info.messageId);
-    
-    return {
-      success: true,
-      messageId: info.messageId
-    };
-
+    console.log("Email sent successfully:", info.messageId);
+    return info;
   } catch (error) {
-    console.error('❌ Email sending failed:', error.message);
-    console.error('Full error:', error);
-    throw new Error('Failed to send email');
+    console.error("Failed to send email:", error);
+    throw new Error("Failed to send email");
   }
 }
 
-/**
- * Send welcome email to new user
- * @param {string} email - Recipient email address
- * @param {string} name - User's name
- * @param {string} role - User's role (student/teacher)
- * @returns {Promise<Object>}
- */
-async function sendWelcomeEmail(email, name, role) {
-  try {
-    const mailOptions = {
-      from: `"EduTrackPro" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: 'Welcome to EduTrackPro!',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #4F46E5;">Welcome to EduTrackPro, ${name}!</h1>
-          <p>Your account has been successfully created as a <strong>${role}</strong>.</p>
-          <p>You can now access all the features available to you.</p>
-          <p style="margin-top: 30px;">Best regards,<br>The EduTrackPro Team</p>
-        </div>
-      `
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Welcome email sent to:', email);
-    
-    return {
-      success: true,
-      messageId: info.messageId
-    };
-
-  } catch (error) {
-    console.error('❌ Failed to send welcome email:', error);
-    throw error;
-  }
-}
-
-module.exports = {
+module.exports = { 
   sendOTPEmail,
-  sendWelcomeEmail,
-  verifyEmailConfig
+  verifyConnection
 };

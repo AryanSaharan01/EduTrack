@@ -1,15 +1,25 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Validate required environment variables
+if (!process.env.DATABASE_URL) {
+    console.error('❌ FATAL ERROR: DATABASE_URL environment variable is not set');
+    console.error('Please set DATABASE_URL in your .env file or environment variables');
+    process.exit(1);
+}
+
 // NeonDB requires SSL connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false // Required for NeonDB
+        rejectUnauthorized: false // Required for NeonDB and most cloud PostgreSQL providers
     },
     max: parseInt(process.env.DB_POOL_SIZE) || 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000, // Increased timeout for cloud DB
+    // Retry configuration for production
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000
 });
 
 // Set search path to lms schema for all connections

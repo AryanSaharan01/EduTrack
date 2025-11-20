@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "start": "vite preview --port 4173",
     "lint": "eslint src --ext .js,.jsx",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "postinstall": "echo 'Frontend dependencies installed successfully'"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

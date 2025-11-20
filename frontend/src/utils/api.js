@@ -1,8 +1,15 @@
 import axios from "axios";
 
+// API Configuration
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
-  headers: { "Content-Type": "application/json" },
+  baseURL: API_URL,
+  headers: { 
+    "Content-Type": "application/json" 
+  },
+  withCredentials: true, // Important for CORS with credentials
+  timeout: 30000 // 30 second timeout
 });
 
 // Add token to every request automatically
@@ -23,6 +30,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Log error for debugging
+    if (import.meta.env.DEV) {
+      console.error("API Error:", error.response || error);
+    }
+    
     if (error.response?.status === 401) {
       // Token expired or invalid - redirect to login
       localStorage.removeItem("token");

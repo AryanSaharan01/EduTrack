@@ -25,6 +25,7 @@ export default function StudentTaskAttempt() {
   const [showInputPanel, setShowInputPanel] = useState(false);
   const [executionResults, setExecutionResults] = useState({});
   const [socket, setSocket] = useState(null);
+  const [showStartTest, setShowStartTest] = useState(true);
   
   const timerRef = useRef(null);
 
@@ -82,12 +83,8 @@ export default function StudentTaskAttempt() {
     fetchTask();
   }, [taskId]);
 
-  // Enter fullscreen when loaded
-  useEffect(() => {
-    if (!loading && task && questions.length > 0) {
-      enterFullscreen();
-    }
-  }, [loading, task, questions]);
+  // Don't auto-enter fullscreen - wait for user to click Start Test
+  // (Removed auto-fullscreen as browser requires user gesture)
 
   // Timer countdown
   useEffect(() => {
@@ -114,7 +111,7 @@ export default function StudentTaskAttempt() {
       if (document.hidden && isFullscreen) {
         setTabSwitchCount(prev => {
           const newCount = prev + 1;
-          if (newCount >= 3) {
+          if (newCount >= 2) {
             handleAutoSubmit("Too many tab switches detected!");
           } else {
             setShowWarning(true);
@@ -129,11 +126,20 @@ export default function StudentTaskAttempt() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [isFullscreen]);
 
-  // Prevent right-click and keyboard shortcuts
+  // Prevent right-click and keyboard shortcuts + Block ESC key
   useEffect(() => {
     const preventActions = (e) => {
       if (e.type === "contextmenu") {
         e.preventDefault();
+        return false;
+      }
+      
+      // Prevent ESC key to avoid exiting fullscreen - MUST block at capture phase
+      if (e.key === "Escape" || e.keyCode === 27 || e.which === 27) {
+        console.log("🚫 ESC key blocked!");
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         return false;
       }
       
@@ -150,14 +156,67 @@ export default function StudentTaskAttempt() {
       }
     };
 
+    // Re-enter fullscreen if somehow exited
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement || 
+        document.webkitFullscreenElement || 
+        document.mozFullScreenElement || 
+        document.msFullscreenElement
+      );
+      
+      if (!isCurrentlyFullscreen && isFullscreen && task && questions.length > 0) {
+        console.log("⚠️ Fullscreen exited!");
+        // Don't auto re-enter as it requires user gesture
+        // Instead show warning and count as tab switch
+        setTabSwitchCount(prev => {
+          const newCount = prev + 1;
+          if (newCount >= 2) {
+            handleAutoSubmit("Exited fullscreen mode!");
+          } else {
+            setShowWarning(true);
+            setTimeout(() => setShowWarning(false), 3000);
+          }
+          return newCount;
+        });
+      }
+    };
+
+    // Add event listeners at multiple levels with capture phase
+    // Window level (highest priority)
+    window.addEventListener("keydown", preventActions, true);
+    window.addEventListener("keyup", preventActions, true);
+    window.addEventListener("keypress", preventActions, true);
+    
+    // Document level
     document.addEventListener("contextmenu", preventActions);
-    document.addEventListener("keydown", preventActions);
+    document.addEventListener("keydown", preventActions, true);
+    document.addEventListener("keyup", preventActions, true);
+    document.addEventListener("keypress", preventActions, true);
+    
+    // Monitor fullscreen changes
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
     
     return () => {
+      // Cleanup window listeners
+      window.removeEventListener("keydown", preventActions, true);
+      window.removeEventListener("keyup", preventActions, true);
+      window.removeEventListener("keypress", preventActions, true);
+      
+      // Cleanup document listeners
       document.removeEventListener("contextmenu", preventActions);
-      document.removeEventListener("keydown", preventActions);
+      document.removeEventListener("keydown", preventActions, true);
+      document.removeEventListener("keyup", preventActions, true);
+      document.removeEventListener("keypress", preventActions, true);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
-  }, []);
+  }, [isFullscreen, task, questions]);
 
   // Socket.IO connection for live preview
   useEffect(() => {
@@ -242,16 +301,21 @@ export default function StudentTaskAttempt() {
   const enterFullscreen = () => {
     const elem = document.documentElement;
     if (elem.requestFullscreen) {
-      elem.requestFullscreen().then(() => setIsFullscreen(true)).catch(err => {
-        console.log("Fullscreen error:", err);
+      elem.requestFullscreen().then(() => {
         setIsFullscreen(true);
+        setShowStartTest(false);
+      }).catch(err => {
+        console.log("Fullscreen error:", err);
+        alert("Please allow fullscreen mode to start the test. Click 'Start Test' again.");
       });
     } else if (elem.webkitRequestFullscreen) {
       elem.webkitRequestFullscreen();
       setIsFullscreen(true);
+      setShowStartTest(false);
     } else if (elem.msRequestFullscreen) {
       elem.msRequestFullscreen();
       setIsFullscreen(true);
+      setShowStartTest(false);
     }
   };
 
@@ -268,7 +332,6 @@ export default function StudentTaskAttempt() {
 
   const handleAutoSubmit = async (reason) => {
     if (timerRef.current) clearInterval(timerRef.current);
-    exitFullscreen();
     
     alert(`Test auto-submitted: ${reason}`);
     await handleSubmit(true);
@@ -288,28 +351,45 @@ export default function StudentTaskAttempt() {
           questionId: parseInt(questionId),
           code: code
         })),
-        executionResults: executionResults, // Judge0 results keyed by questionId
+        executionResults: executionResults,
         tabSwitchCount,
         timeTaken: ((task.timeLimit || 45) * 60) - timeRemaining
       };
 
-      console.log("[SUBMIT] Submitting with execution results:", {
-        taskId: submission.taskId,
-        answersCount: submission.answers.length,
-        hasExecutionResults: Object.keys(executionResults).length > 0,
-        executionResults: executionResults
-      });
+      console.log("[SUBMIT] Submitting...");
       
       await api.post("/student/submissions", submission);
       
-      exitFullscreen();
+      console.log("[SUBMIT] ✅ Success!");
+      
+      // Exit fullscreen with error handling
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+      } catch (err) {
+        console.log("Fullscreen exit (non-critical):", err);
+      }
+      
+      // Navigate after successful submission
       navigate("/student/tasks", { 
         state: { message: isAuto ? "Test auto-submitted" : "Test submitted successfully" }
       });
+      
     } catch (err) {
-      console.error("[SUBMIT] Error submitting test:", err);
-      console.error("[SUBMIT] Error details:", err.response?.data);
-      alert("Failed to submit test. Please try again.");
+      console.error("[SUBMIT] ❌ Error:", err);
+      console.error("[SUBMIT] Details:", err.response?.data);
+      
+      // Try to exit fullscreen even on error
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+      } catch (exitErr) {
+        console.log("Fullscreen exit (non-critical):", exitErr);
+      }
+      
+      alert("Failed to submit test. Please try again or contact your teacher.");
     }
   };
 
@@ -512,6 +592,76 @@ export default function StudentTaskAttempt() {
 
   const currentQuestion = questions[currentQuestionIndex];
 
+  // Show Start Test screen before entering fullscreen
+  if (showStartTest) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="max-w-2xl w-full mx-4">
+          <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border-2 border-slate-700">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">📝</span>
+              </div>
+              <h1 className="text-3xl font-bold text-white mb-2">{task.title}</h1>
+              <p className="text-slate-400">Ready to begin your test?</p>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-6 mb-6 space-y-3">
+              <div className="flex items-center gap-3 text-slate-300">
+                <svg className="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span><strong>{questions.length}</strong> Questions</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-300">
+                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span><strong>{task.timeLimit || 45}</strong> Minutes</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-300">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Total Marks: <strong>{questions.reduce((sum, q) => sum + (q.marks || 0), 0)}</strong></span>
+              </div>
+            </div>
+
+            <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-xl p-4 mb-6">
+              <h3 className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Important Instructions
+              </h3>
+              <ul className="text-sm text-yellow-200 space-y-1 ml-7">
+                <li>• Test will run in fullscreen mode</li>
+                <li>• Do not exit fullscreen or switch tabs (max 1 warning)</li>
+                <li>• Timer starts immediately after clicking "Start Test"</li>
+                <li>• ESC key is disabled during the test</li>
+                <li>• Test will auto-submit when time expires</li>
+              </ul>
+            </div>
+
+            <button
+              onClick={enterFullscreen}
+              className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold text-lg px-8 py-4 rounded-xl transition-all transform hover:scale-105 shadow-lg"
+            >
+              Start Test
+            </button>
+
+            <button
+              onClick={() => navigate("/student/tasks")}
+              className="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold px-8 py-3 rounded-xl transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-slate-900 flex flex-col overflow-hidden">
       
@@ -519,7 +669,7 @@ export default function StudentTaskAttempt() {
       {showWarning && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl font-bold">
-            ⚠️ Warning: Tab switch detected! ({3 - tabSwitchCount} warnings left)
+            ⚠️ Warning: Tab switch detected! ({2 - tabSwitchCount} warnings left)
           </div>
         </div>
       )}
@@ -698,6 +848,13 @@ export default function StudentTaskAttempt() {
                   ...prev,
                   [currentQuestion.id]: value
                 }));
+              }}
+              onMount={(editor, monaco) => {
+                // Disable ESC key in Monaco Editor
+                editor.addCommand(monaco.KeyCode.Escape, () => {
+                  console.log("🚫 ESC blocked in Monaco Editor");
+                  // Do nothing - blocks ESC
+                });
               }}
               options={{
                 fontSize: 14,
