@@ -49,7 +49,7 @@ async function sendOTPEmail(email, otp) {
     
     const info = await transporter.sendMail({
       from: `"EduTrack Pro LMS - Security Team" <${process.env.SMTP_USER}>`,
-      to,
+      to: email,
       subject: "Your Verification Code for EduTrack Pro LMS",
       text: `Your verification code is ${otp}. This code will expire in 2 minutes. If you didn't request this code, please ignore this email.`,
       html: `
