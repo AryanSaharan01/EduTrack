@@ -13,6 +13,7 @@ function generateOTP() {
 router.post('/send-otp', async (req, res) => {
     try {
         const { email, role } = req.body;
+        console.log('my email',email,role)
 
         console.log('📧 Send OTP Request received:', { email, role });
 

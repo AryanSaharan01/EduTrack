@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const endpoint = `${apiUrl}/auth/send-otp`;
+      const endpoint = `${apiUrl}/auth/send-otp`; // ✅ Changed from /send-otp to /auth/send-otp
       
       console.log('📤 Sending OTP...');
       console.log('  Email:', email);
@@ -35,12 +35,11 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include', // Important for CORS with credentials
+        credentials: 'include',
         body: JSON.stringify({ email, role })
       });
 
       console.log('📨 Response status:', response.status);
-      console.log('📨 Response headers:', Object.fromEntries(response.headers.entries()));
 
       const data = await response.json();
       console.log('📨 Response data:', data);
@@ -56,7 +55,7 @@ export const AuthProvider = ({ children }) => {
       return {
         success: true,
         message: data.message,
-        otp: data.otp // Only in dev
+        otp: data.otp
       };
 
     } catch (error) {
