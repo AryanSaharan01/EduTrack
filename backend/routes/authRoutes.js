@@ -64,6 +64,29 @@ router.post('/send-otp', async (req, res) => {
                 [otp, otpExpires, userId]
             );
             console.log('✅ Updated existing user OTP:', userId);
+
+            // Send OTP via email using the email service
+            try {
+                await sendOTPEmail(email, otp);
+                console.log('✅ OTP email sent to:', email);
+            } catch (emailError) {
+                console.error('❌ Email sending failed:', emailError.message);
+                console.error('Full email error:', emailError);
+                // Don't fail the whole request, just log the error
+                // In production, you might want to fail here
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to send email. Please try again.',
+                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'OTP sent successfully',
+                otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only in dev
+            });
+
         } else {
             // Create new user with given role
             const newUser = await pool.query(
@@ -72,20 +95,33 @@ router.post('/send-otp', async (req, res) => {
             );
             userId = newUser.rows[0].id;
             console.log('✅ Created new user:', userId);
+
+            // Send OTP via email using the email service
+            try {
+                await sendOTPEmail(email, otp);
+                console.log('✅ OTP email sent to:', email);
+            } catch (emailError) {
+                console.error('❌ Email sending failed:', emailError.message);
+                console.error('Full email error:', emailError);
+                // Don't fail the whole request, just log the error
+                // In production, you might want to fail here
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to send email. Please try again.',
+                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'OTP sent successfully',
+                otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only in dev
+            });
         }
-
-        // Send OTP via email using the email service
-        await sendOTPEmail(email, otp);
-        console.log('✅ OTP email sent to:', email);
-
-        return res.status(200).json({
-            success: true,
-            message: 'OTP sent successfully',
-            otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only in dev
-        });
 
     } catch (error) {
         console.error('❌ Error in /send-otp:', error);
+        console.error('Error stack:', error.stack);
         return res.status(500).json({
             success: false,
             message: 'Failed to send OTP',

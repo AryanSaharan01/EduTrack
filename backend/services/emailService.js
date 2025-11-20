@@ -36,8 +36,17 @@ async function verifyConnection() {
  * @param {string} otp - One-time password
  * @returns {Promise<void>}
  */
-async function sendOTPEmail(to, otp) {
+async function sendOTPEmail(email, otp) {
   try {
+    console.log('📧 Attempting to send OTP email to:', email);
+    console.log('🔧 SMTP Config:', {
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: emailConfig.secure,
+      user: emailConfig.auth.user ? '✅ Set' : '❌ Missing',
+      pass: emailConfig.auth.pass ? '✅ Set' : '❌ Missing'
+    });
+    
     const info = await transporter.sendMail({
       from: `"EduTrack Pro LMS - Security Team" <${process.env.SMTP_USER}>`,
       to,
