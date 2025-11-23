@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import api from "../../utils/api.js";
 import AppLink from "../../components/AppLink.jsx";
+import { ThemeContext } from "../../context/ThemeContext.jsx";
 
 export default function StudentDashboard() {
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,16 +22,15 @@ export default function StudentDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? "bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526]" : "bg-slate-50"}`}>
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl animate-spin mx-auto mb-4" 
-               style={{ animationDuration: '3s' }} />
+          <div className={`w-16 h-16 ${isDark ? "bg-gradient-to-br from-[#00f2fe] to-[#4facfe] shadow-[0_0_40px_#00f2fe]" : "bg-gradient-to-br from-teal-500 to-blue-500"} rounded-2xl animate-spin mx-auto mb-4`} style={{ animationDuration: '3s' }}></div>
           <div className="flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className={`w-2 h-2 ${isDark ? "bg-[#00f2fe]" : "bg-teal-500"} rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
+            <div className={`w-2 h-2 ${isDark ? "bg-[#4facfe]" : "bg-blue-500"} rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
+            <div className={`w-2 h-2 ${isDark ? "bg-[#a770ef]" : "bg-purple-500"} rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
           </div>
-          <p className="text-slate-600 font-medium mt-3">Loading your dashboard...</p>
+          <p className={`font-medium mt-3 ${isDark ? "text-[#b2b7ff]" : "text-slate-600"}`}>Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -36,17 +38,17 @@ export default function StudentDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white rounded-2xl p-8 shadow-xl border border-red-200 max-w-md">
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? "bg-gradient-to-br from-[#232526] via-[#0f2027] to-[#2c5364]" : "bg-slate-50"}`}>
+        <div className={`rounded-2xl p-8 shadow-xl border max-w-md ${isDark ? "bg-[#181c2b] border-[#ff4e50]" : "bg-white border-red-200"}`}>
           <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <div className={`w-16 h-16 ${isDark ? "bg-[#ff4e50]" : "bg-red-100"} rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse`}>
               <span className="text-4xl">⚠️</span>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Error Loading Dashboard</h2>
-            <p className="text-red-600 font-semibold mb-4">{error}</p>
+            <h2 className={`text-2xl font-bold mb-2 ${isDark ? "text-[#f8fafc]" : "text-slate-900"}`}>Error Loading Dashboard</h2>
+            <p className={`font-semibold mb-4 ${isDark ? "text-[#ff4e50]" : "text-red-600"}`}>{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl hover:scale-105 transition-all"
+              className={`bg-gradient-to-r ${isDark ? "from-[#00f2fe] to-[#4facfe]" : "from-teal-500 to-blue-500"} text-white font-semibold px-6 py-3 rounded-xl hover:scale-105 transition-all`}
             >
               Retry
             </button>
@@ -231,29 +233,27 @@ export default function StudentDashboard() {
   const randomTip = tips[Math.floor(Math.random() * tips.length)];
 
   return (
-    <div className="min-h-screen bg-slate-50 w-full">
+    <div className={`min-h-screen w-full ${isDark ? "bg-gradient-to-br from-[#181c2b] via-[#232526] to-[#0f2027]" : "bg-slate-50"}`}>
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         
         {/* Welcome Header */}
-        <div className="bg-white rounded-2xl shadow-md p-7 border border-slate-200 hover:shadow-lg transition-shadow animate-fade-in">
+        <div className={`rounded-2xl shadow-md p-7 border transition-shadow animate-fade-in ${isDark ? "bg-[rgba(24,28,43,0.85)] border-[#00f2fe] backdrop-blur-md shadow-[0_4px_32px_#00f2fe40]" : "bg-white border-slate-200 hover:shadow-lg"}`}>
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-600 rounded-lg text-sm font-semibold mb-3 animate-pulse">
-                <span className="w-2 h-2 bg-teal-500 rounded-full animate-ping" />
-                <span className="w-2 h-2 bg-teal-500 rounded-full absolute" />
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold mb-3 animate-pulse ${isDark ? "bg-[#232526] text-[#00f2fe]" : "bg-teal-50 text-teal-600"}`}>
+                <span className="w-2 h-2 rounded-full animate-ping" style={{ background: isDark ? "#00f2fe" : "#14b8a6" }} />
+                <span className="w-2 h-2 rounded-full absolute" style={{ background: isDark ? "#00f2fe" : "#14b8a6" }} />
                 Active Student
               </div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                  Welcome back, {data.student?.name || 'Student'}!
-                </span> 👋
+              <h1 className={`text-4xl font-bold mb-2 ${isDark ? "text-transparent bg-gradient-to-r from-[#00f2fe] via-[#4facfe] to-[#a770ef] bg-clip-text" : "text-slate-900"}`}>
+                Welcome back, {data.student?.name || 'Student'}! <span>👋</span>
               </h1>
-              <p className="text-base text-slate-600">
+              <p className={`text-base ${isDark ? "text-[#b2b7ff]" : "text-slate-600"}`}>
                 Ready to conquer today&apos;s challenges? Let&apos;s make it count!
               </p>
             </div>
             <div className="hidden sm:block">
-              <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg hover:scale-110 hover:rotate-6 transition-all cursor-pointer">
+              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg transition-all cursor-pointer ${isDark ? "bg-gradient-to-br from-[#00f2fe] to-[#4facfe] shadow-[0_0_40px_#00f2fe]" : "bg-gradient-to-br from-teal-500 to-blue-500 hover:scale-110 hover:rotate-6"}`}>
                 <span className="text-4xl">🎓</span>
               </div>
             </div>
