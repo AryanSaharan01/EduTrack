@@ -8,56 +8,29 @@ const pool = require("./config/database");
 // Load environment variables
 dotenv.config();
 
-// Route imports
-const authRoutes = require("./routes/authRoutes");
-const teacherRoutes = require("./routes/teacher");
-const studentRoutes = require("./routes/student");
-const taskRoutes = require("./routes/tasks");
-const performanceRoutes = require("./routes/performance");
-
-// App initialization
-const app = express();
-const PORT = process.env.PORT || 5000;
-
 // CORS Configuration
+const allowedOrigins = [
+  'https://edutrackpro.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, curl, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      process.env.CLIENT_ORIGIN,
-      'https://edutrackpro.vercel.app',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173'
-    ].filter(Boolean); // Remove undefined values
-
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ CORS: Allowing origin (dev mode): ${origin}`);
-      return callback(null, true);
-    }
-
-    // Allow any local network IPs for development
-    const isLocalNetwork = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin);
-
-    if (allowedOrigins.includes(origin) || isLocalNetwork) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
       console.log(`✅ CORS: Allowed origin: ${origin}`);
-      callback(null, true);
-    } else {
-      console.warn(`⚠️ CORS: Unknown origin (allowing in production): ${origin}`);
-      // Allow unknown origins (you can tighten this later)
-      callback(null, true);
+      return callback(null, true);
     }
+    console.warn(`❌ CORS: Blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
+    'Content-Type',
+    'Authorization',
     'X-Requested-With',
     'Accept',
     'Origin'
@@ -68,9 +41,33 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
-const server = http.createServer(app);
+// App initialization
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Explicitly handle OPTIONS requests (CORS preflight)
+app.options('*', cors(corsOptions));
+
+// Enhanced logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.originalUrl} - Origin: ${req.headers.origin}`);
+  next();
+});
+
+// Route imports
+const authRoutes = require("./routes/authRoutes");
+const teacherRoutes = require("./routes/teacher");
+const studentRoutes = require("./routes/student");
+const taskRoutes = require("./routes/tasks");
+const performanceRoutes = require("./routes/performance");
 
 // Socket.IO server with explicit path and aligned CORS
+const server = http.createServer(app);
 const io = new Server(server, {
   path: "/socket.io",
   cors: {
@@ -105,38 +102,6 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true
   }
-});
-
-// Middleware
-app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Explicitly handle OPTIONS requests (CORS preflight)
-app.options('*', cors(corsOptions));
-
-// Enhanced logging middleware
-app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log(
-    `[${timestamp}] ${req.method} ${req.path} - Origin: ${
-      req.headers.origin || 'no-origin'
-    }`
-  );
-  
-  // Log student route requests in detail
-  if (req.path.includes('/student')) {
-    console.log(`  → Student route accessed`);
-    console.log(
-      `  → Headers:`,
-      JSON.stringify({
-        authorization: req.headers.authorization ? 'present' : 'missing',
-        origin: req.headers.origin
-      })
-    );
-  }
-  
-  next();
 });
 
 // Active students tracking
