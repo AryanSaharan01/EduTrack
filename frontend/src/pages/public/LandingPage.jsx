@@ -26,22 +26,22 @@ export default function LandingPage() {
   const testimonials = [
     {
       quote:
-        "EduTrack LMS Pro made tracking my coding progress effortless. The analytics help me stay consistent.",
-      name: "Priya Sharma",
-      role: "Computer Science Undergraduate",
+        "EduTrack LMS Pro made managing coding assignments and tracking student progress so much easier. The dashboards are a game changer!",
+      name: "Rohan Gupta",
+      role: "Faculty - Programming",
       avatar: "https://i.pravatar.cc/80?img=12",
     },
     {
       quote:
-        "I can monitor every student's code activity in real time. Feedback cycles are faster than ever.",
-      name: "Rohan Gupta",
-      role: "Faculty - Programming",
+        "I love the leaderboard and the instant feedback on my submissions. It keeps me motivated to improve!",
+      name: "Priya Sharma",
+      role: "Computer Science Undergraduate",
       avatar: "https://i.pravatar.cc/80?img=30",
     },
     {
       quote:
-        "The anti-cheat and leaderboard system keeps the class competitive and honest. Brilliant platform.",
-      name: "Neha Verma",
+        "The anti-cheat system ensures fair competition and the analytics help me understand my strengths and weaknesses.",
+      name: "Saurabh Tyagi",
       role: "Academic Mentor",
       avatar: "https://i.pravatar.cc/80?img=50",
     },
@@ -50,33 +50,33 @@ export default function LandingPage() {
   const features = [
     {
       icon: "⚡",
-      title: "Real-Time Code Tracking",
-      desc: "Monitor active editor sessions & progress instantly.",
+      title: "Live Code Tracking",
+      desc: "Monitor student coding activity and progress in real time.",
     },
     {
-      icon: "🧠",
-      title: "AI Feedback Engine",
-      desc: "Actionable suggestions to improve code quality.",
+      icon: "📝",
+      title: "Assignment Management",
+      desc: "Create, assign, and grade coding tasks efficiently.",
     },
     {
       icon: "🛡️",
-      title: "Anti‑Cheat Layer",
-      desc: "Similarity checks & anomaly detection built-in.",
+      title: "Anti‑Cheat System",
+      desc: "Detect code similarity and anomalies to ensure fair play.",
     },
     {
       icon: "📊",
-      title: "Deep Analytics",
-      desc: "Performance trends, heat maps & learning velocity.",
+      title: "Performance Analytics",
+      desc: "Track student and class performance with detailed dashboards.",
     },
     {
       icon: "🏆",
-      title: "Gamified Growth",
-      desc: "Badges, streaks & leaderboards to motivate.",
+      title: "Gamified Learning",
+      desc: "Leaderboards and badges to motivate students.",
     },
     {
-      icon: "🌍",
-      title: "Device Fluid",
-      desc: "Optimized for mobile, tablet & desktop use.",
+      icon: "👨‍🏫",
+      title: "Teacher & Student Dashboards",
+      desc: "Centralized views for managing classes and tracking progress.",
     },
   ];
 
@@ -125,15 +125,15 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-5xl lg:text-6xl font-bold leading-tight text-slate-900">
-              Transform Learning with
+              Simplify Coding Education with
               <span className="block mt-2 bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
                 EduTrack LMS Pro
               </span>
             </h1>
 
             <p className="text-lg text-slate-600 leading-relaxed">
-              AI-guided coding, live progress tracking, anti‑cheat automation,
-              gamified performance, and classroom clarity—all in one modern
+              Live code tracking, assignment management, anti‑cheat automation,
+              gamified performance, and classroom analytics—all in one modern
               platform.
             </p>
 
