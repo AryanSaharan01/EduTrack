@@ -4,7 +4,7 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // start as true
   const [token, setToken] = useState(localStorage.getItem('token'));
 
   // Check if user is logged in on mount
@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
       const userData = JSON.parse(localStorage.getItem('user') || 'null');
       setUser(userData);
     }
+    setLoading(false); // done restoring
   }, [token]);
 
   // Helper function to add timeout to fetch
